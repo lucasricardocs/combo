@@ -16,7 +16,6 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import io
 import base64
-import urllib.request
 
 # --- CONSTANTES E CONFIGURAÇÕES ---
 CONFIG = {
@@ -24,11 +23,10 @@ CONFIG = {
     "layout": "centered",
     "sidebar_state": "expanded",
     "excel_file": "recebimentos.xlsx",
-    "logo_path": "logo.png",
-    # LINK ATUALIZADO ABAIXO:
-    "logo_url": "https://raw.githubusercontent.com/lucasricardocs/combo/refs/heads/main/logo.png"
+    "logo_path": "logo.png"
 }
 
+# --- CARDÁPIO NOVO (JBC / DOUBLE) ---
 CARDAPIOS = {
     "sanduiches": {
         "JBC (Junior Bacon Cheese)": 10.00,
@@ -85,35 +83,17 @@ def load_data():
         st.error(f"Erro ao carregar dados: {e}")
         return pd.DataFrame(columns=['Data', 'Dinheiro', 'Cartao', 'Pix'])
 
-def get_logo_base64():
-    """Tenta carregar a logo localmente ou da URL"""
-    # 1. Tenta Local
-    if os.path.exists(CONFIG["logo_path"]):
-        try:
-            with open(CONFIG["logo_path"], "rb") as f:
-                data = f.read()
-            return base64.b64encode(data).decode()
-        except Exception as e:
-            pass # Falha silenciosa para tentar URL
-    
-    # 2. Tenta URL
-    try:
-        # Define um User-Agent para evitar bloqueios simples
-        req = urllib.request.Request(
-            CONFIG["logo_url"], 
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        with urllib.request.urlopen(req) as response:
-            data = response.read()
-        return base64.b64encode(data).decode()
-    except Exception as e:
-        return None
+# --- FUNÇÃO DA LOGO QUE FUNCIONA NO SEU AMBIENTE ---
+def get_img_as_base64(file_path):
+    with open(file_path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 
-# --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS ---
+# --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS (LÓGICA NOVA) ---
 def create_individual_two_combos(max_combos=100):
     num_jbc = random.randint(0, max_combos)
     num_double = random.randint(0, max_combos)
-    num_latas = num_jbc + num_double  # REGRA: soma dos sanduíches
+    num_latas = num_jbc + num_double
     num_cebolas = random.randint(0, 50)
     
     individual = {
@@ -136,7 +116,6 @@ def evaluate_fitness_two_combos(individual, target_value):
     qty_lata = individual.get("Refri Lata", 0)
     qty_cebola = individual.get("Cebola Adicional", 0)
     
-    # PENALIZAÇÃO: Total Sanduíches deve = Total Latas
     total_sanduiches = qty_jbc + qty_double
     if total_sanduiches != qty_lata:
         return 1_000_000 + abs(total_sanduiches - qty_lata) * 10000
@@ -546,7 +525,7 @@ st.set_page_config(
     initial_sidebar_state=CONFIG["sidebar_state"]
 )
 
-# --- CSS GLOBAL COM LOGO ANIMADA ---
+# --- CSS GLOBAL COM LOGO ANIMADA (IGUAL AO SEU QUE FUNCIONA) ---
 st.markdown("""
 <style>
     .stApp {
@@ -698,12 +677,10 @@ if 'resultado_arquivo' not in st.session_state:
 if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
-# --- LOGO ANIMADA (CORRIGIDA) ---
+# --- LOGO ANIMADA (MÉTODO DO SEU CÓDIGO) ---
 try:
-    logo_base64 = get_logo_base64()
-    
-    if logo_base64:
-        # AQUI FOI FEITA A CORREÇÃO: image/png;base64,...
+    if os.path.exists(CONFIG["logo_path"]):
+        img_base64 = get_img_as_base64(CONFIG["logo_path"])
         st.markdown(
             f"""
             <div class="logo-container">
@@ -715,7 +692,7 @@ try:
                 <div class="sparkle s6"></div>
                 <div class="sparkle s7"></div>
                 <div class="sparkle s8"></div>
-                <img src="image/png;base64,{logo_base64}" class="logo-animada">
+                <img src="image/png;base64,{img_base64}" class="logo-animada">
             </div>
             """,
             unsafe_allow_html=True
@@ -727,7 +704,6 @@ try:
             <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
         </div>
         """, unsafe_allow_html=True)
-
 except Exception as e:
     st.error(f"Erro na logo: {e}")
 
