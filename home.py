@@ -28,7 +28,6 @@ CONFIG = {
     "logo_url": "https://raw.githubusercontent.com/lucasricardocs/combo/main/logo.png"
 }
 
-# --- CARDÁPIO ATUALIZADO (JBC / DOUBLE) ---
 CARDAPIOS = {
     "sanduiches": {
         "JBC (Junior Bacon Cheese)": 10.00,
@@ -87,28 +86,28 @@ def load_data():
 
 def get_logo_base64():
     """Tenta carregar a logo localmente ou da URL"""
+    # 1. Tenta Local
     if os.path.exists(CONFIG["logo_path"]):
         try:
             with open(CONFIG["logo_path"], "rb") as f:
                 data = f.read()
             return base64.b64encode(data).decode()
         except Exception as e:
-            pass
+            pass # Falha silenciosa para tentar URL
     
+    # 2. Tenta URL
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        req = urllib.request.Request(CONFIG["logo_url"], headers=headers)
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(CONFIG["logo_url"]) as response:
             data = response.read()
         return base64.b64encode(data).decode()
     except Exception as e:
         return None
 
-# --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS (ORIGINAIS) ---
+# --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS ---
 def create_individual_two_combos(max_combos=100):
     num_jbc = random.randint(0, max_combos)
     num_double = random.randint(0, max_combos)
-    num_latas = num_jbc + num_double
+    num_latas = num_jbc + num_double  # REGRA: soma dos sanduíches
     num_cebolas = random.randint(0, 50)
     
     individual = {
@@ -131,6 +130,7 @@ def evaluate_fitness_two_combos(individual, target_value):
     qty_lata = individual.get("Refri Lata", 0)
     qty_cebola = individual.get("Cebola Adicional", 0)
     
+    # PENALIZAÇÃO: Total Sanduíches deve = Total Latas
     total_sanduiches = qty_jbc + qty_double
     if total_sanduiches != qty_lata:
         return 1_000_000 + abs(total_sanduiches - qty_lata) * 10000
@@ -247,7 +247,7 @@ def buscar_combinacao_two_combos(target_value, max_time_seconds=5, population_si
     
     return best_global_individual, attempts
 
-# --- FUNÇÕES PARA GERAR PDF (ORIGINAIS) ---
+# --- FUNÇÕES PARA GERAR PDF ---
 def create_watermark(canvas, logo_path, width=400, height=400, opacity=0.1):
     try:
         if os.path.exists(logo_path):
@@ -257,7 +257,7 @@ def create_watermark(canvas, logo_path, width=400, height=400, opacity=0.1):
                              width=width, height=height, mask='auto', preserveAspectRatio=True)
             canvas.restoreState()
     except Exception as e:
-        pass
+        print(f"Erro ao adicionar marca d'água: {e}")
 
 def fig_to_buffer(fig):
     buf = io.BytesIO()
@@ -270,32 +270,268 @@ def create_pdf_report(df, vendas, total_vendas, imposto_simples, custo_funcionar
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
-    
+    title_style = styles['Title']
+    heading_style = styles['Heading1']
+    subheading_style = styles['Heading2']
+    normal_style = styles['Normal']
     elements = []
-    elements.append(Paragraph("Relatório de Gestão - Clips Burger", styles['Title']))
-    elements.append(Spacer(1, 12))
     
-    data_resumo = [
-        ["Total Bruto", format_currency(total_vendas)],
-        ["Imposto (Simples)", format_currency(imposto_simples)],
-        ["Custos Operacionais", format_currency(total_custos)],
+    try:
+        if os.path.exists(logo_path):
+            img = Image(logo_path, width=2*inch, height=1.5*inch)
+            img.hAlign = 'CENTER'
+            elements.append(img)
+            elements.append(Spacer(1, 0.5*inch))
+    except Exception as e:
+        print(f"Erro ao adicionar logo: {e}")
+    
+    elements.append(Paragraph("Relatório Financeiro - Clips Burger", title_style))
+    elements.append(Spacer(1, 0.5*inch))
+    elements.append(Paragraph(f"Data do relatório: {datetime.now().strftime('%d/%m/%Y')}", normal_style))
+    elements.append(Spacer(1, 0.25*inch))
+    elements.append(Paragraph("Resumo Financeiro", heading_style))
+    elements.append(Spacer(1, 0.1*inch))
+    
+    data = [
+        ["Métrica", "Valor"],
+        ["Faturamento Bruto", format_currency(total_vendas)],
+        ["Imposto Simples (6%)", format_currency(imposto_simples)],
+        ["Custo Funcionário CLT", format_currency(custo_funcionario)],
+        ["Custo Contadora", format_currency(custo_contadora)],
+        ["Total de Custos", format_currency(total_custos)],
         ["Lucro Estimado", format_currency(lucro_estimado)]
     ]
-    t = Table(data_resumo, colWidths=[200, 200])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#ff4b4b")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+    
+    table = Table(data, colWidths=[doc.width/2.5, doc.width/2.5])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (1, 0), 12),
+        ('BACKGROUND', (0, -1), (1, -1), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.5*inch))
+    
+    elements.append(Paragraph("Análise de Vendas", heading_style))
+    elements.append(Spacer(1, 0.1*inch))
+    
+    try:
+        fig, ax = plt.subplots(figsize=(8, 5))
+        vendas.plot(kind='bar', x='Forma', y='Valor', ax=ax, color='steelblue')
+        ax.set_title('Vendas por Forma de Pagamento')
+        ax.set_ylabel('Valor (R$)')
+        ax.set_xlabel('')
+        plt.tight_layout()
+        img_buf = fig_to_buffer(fig)
+        img = Image(img_buf, width=doc.width, height=4*inch)
+        elements.append(img)
+        elements.append(Spacer(1, 0.25*inch))
+        plt.close(fig)
+    except Exception as e:
+        elements.append(Paragraph(f"Erro ao gerar gráfico de vendas: {e}", normal_style))
+    
+    try:
+        custos_df = pd.DataFrame({
+            'Item': ['Impostos', 'Funcionário', 'Contadora'],
+            'Valor': [imposto_simples, custo_funcionario, custo_contadora]
+        })
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.pie(custos_df['Valor'], labels=custos_df['Item'], autopct='%1.1f%%', startangle=90, shadow=True)
+        ax.set_title('Composição dos Custos')
+        plt.tight_layout()
+        img_buf = fig_to_buffer(fig)
+        img = Image(img_buf, width=doc.width, height=4*inch)
+        elements.append(img)
+        plt.close(fig)
+    except Exception as e:
+        elements.append(Paragraph(f"Erro ao gerar gráfico de custos: {e}", normal_style))
+    
+    elements.append(Spacer(1, 0.5*inch))
+    elements.append(Paragraph("Detalhamento por Forma de Pagamento", subheading_style))
+    elements.append(Spacer(1, 0.1*inch))
+    
+    data = [["Forma de Pagamento", "Valor"]]
+    for _, row in vendas.iterrows():
+        data.append([row['Forma'], format_currency(row['Valor'])])
+    
+    table = Table(data, colWidths=[doc.width/2, doc.width/4])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey)
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
     ]))
-    elements.append(t)
+    elements.append(table)
+    elements.append(Spacer(1, inch))
+    footer_text = "Este relatório foi gerado automaticamente pelo Sistema de Gestão da Clips Burger."
+    elements.append(Paragraph(footer_text, normal_style))
     
-    doc.build(elements, onFirstPage=lambda c, d: create_watermark(c, logo_path), 
-              onLaterPages=lambda c, d: create_watermark(c, logo_path))
+    def add_watermark(canvas, doc):
+        create_watermark(canvas, logo_path, width=300, height=300, opacity=0.1)
+    
+    doc.build(elements, onFirstPage=add_watermark, onLaterPages=add_watermark)
     buffer.seek(0)
     return buffer
+
+def create_altair_chart(data, chart_type, x_col, y_col, color_col=None, title=None, interactive=True):
+    if chart_type == 'line':
+        chart = alt.Chart(data).mark_line(point=True).encode(
+            x=alt.X(f'{x_col}:T', title=x_col),
+            y=alt.Y(f'{y_col}:Q', title=y_col),
+            tooltip=[x_col, y_col]
+        )
+    elif chart_type == 'bar':
+        chart = alt.Chart(data).mark_bar().encode(
+            x=alt.X(f'{x_col}:N', title=x_col),
+            y=alt.Y(f'{y_col}:Q', title=y_col),
+            color=alt.Color(f'{color_col}:N') if color_col else alt.value('steelblue'),
+            tooltip=[x_col, y_col]
+        )
+    elif chart_type == 'pie':
+        chart = alt.Chart(data).mark_arc().encode(
+            theta=alt.Theta(f'{y_col}:Q', stack=True),
+            color=alt.Color(f'{x_col}:N', legend=alt.Legend(title=x_col)),
+            tooltip=[x_col, y_col]
+        )
+    
+    chart = chart.properties(
+        title=title if title else f'{y_col} por {x_col}',
+        width=700,
+        height=400
+    )
+    return chart.interactive() if interactive else chart
+
+# --- LÓGICA DE PROCESSAMENTO GENÉTICO ---
+def gerar_dados_geneticos_two_combos(valor_alvo_total, pop_size, n_gens):
+    combinacao, ciclos = buscar_combinacao_two_combos(
+        valor_alvo_total, 
+        max_time_seconds=5, 
+        population_size=pop_size, 
+        generations=n_gens
+    )
+    
+    sanduiches = {}
+    bebidas = {}
+    
+    for item, qty in combinacao.items():
+        if item in CARDAPIOS["sanduiches"]:
+            sanduiches[item] = qty
+        elif item in CARDAPIOS["bebidas"]:
+            bebidas[item] = qty
+    
+    val_sand = sum(CARDAPIOS["sanduiches"][k] * v for k, v in sanduiches.items())
+    val_beb = sum(CARDAPIOS["bebidas"][k] * v for k, v in bebidas.items())
+    val_total = val_sand + val_beb
+    
+    return {
+        'sanduiches': sanduiches,
+        'bebidas': bebidas,
+        'val_sand': val_sand,
+        'val_beb': val_beb,
+        'val_total': val_total,
+        'alvo': valor_alvo_total,
+        'ciclos': ciclos
+    }
+
+def renderizar_resultados(dados):
+    st.subheader(f"Valor Alvo: {format_currency(dados['alvo'])}")
+    st.caption(f"🤖 O algoritmo realizou {dados['ciclos']} ciclos completos de evolução.")
+    
+    qty_jbc = dados['sanduiches'].get("JBC (Junior Bacon Cheese)", 0)
+    qty_double = dados['sanduiches'].get("Double Cheese Burger", 0)
+    qty_lata = dados['bebidas'].get("Refri Lata", 0)
+    qty_cebola = dados['sanduiches'].get("Cebola Adicional", 0)
+    
+    if qty_jbc > 0:
+        st.success(f"✅ **Combo 1 identificado:** {qty_jbc} unidades (JBC + Refri Lata) = {format_currency(qty_jbc * COMBO_1_PRECO)}")
+    
+    if qty_double > 0:
+        st.success(f"✅ **Combo 2 identificado:** {qty_double} unidades (Double Cheese + Refri Lata) = {format_currency(qty_double * COMBO_2_PRECO)}")
+    
+    if qty_jbc + qty_double == qty_lata:
+        st.info(f"✅ **Regra respeitada:** Total de Sanduíches ({qty_jbc + qty_double}) = Total de Latas ({qty_lata})")
+    else:
+        st.warning(f"⚠️ Total de Sanduíches ({qty_jbc + qty_double}) ≠ Total de Latas ({qty_lata})")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### 🍔 Produtos")
+        if dados['sanduiches']:
+            df_s = pd.DataFrame({
+                'Produto': list(dados['sanduiches'].keys()),
+                'Qnt': list(dados['sanduiches'].values()),
+                'Preço Unitário': [CARDAPIOS["sanduiches"][k] for k in dados['sanduiches']],
+                'Subtotal': [CARDAPIOS["sanduiches"][k]*v for k,v in dados['sanduiches'].items()]
+            })
+            df_s = df_s.sort_values('Subtotal', ascending=False)
+            html_s = df_s.style.format({'Qnt':'{:.0f}', 'Preço Unitário':'R$ {:.2f}', 'Subtotal':'R$ {:.2f}'})\
+                .set_table_styles(get_global_centered_styles()).hide(axis='index').to_html()
+            st.markdown(html_s, unsafe_allow_html=True)
+            st.write("")
+            st.metric("Total Produtos", format_currency(dados['val_sand']))
+        else:
+            st.warning("Sem itens")
+
+    with col2:
+        st.markdown("### 🥤 Bebidas")
+        if dados['bebidas']:
+            df_b = pd.DataFrame({
+                'Produto': list(dados['bebidas'].keys()),
+                'Qnt': list(dados['bebidas'].values()),
+                'Preço Unitário': [CARDAPIOS["bebidas"][k] for k in dados['bebidas']],
+                'Subtotal': [CARDAPIOS["bebidas"][k]*v for k,v in dados['bebidas'].items()]
+            })
+            df_b = df_b.sort_values('Subtotal', ascending=False)
+            html_b = df_b.style.format({'Qnt':'{:.0f}', 'Preço Unitário':'R$ {:.2f}', 'Subtotal':'R$ {:.2f}'})\
+                .set_table_styles(get_global_centered_styles()).hide(axis='index').to_html()
+            st.markdown(html_b, unsafe_allow_html=True)
+            st.write("")
+            st.metric("Total Bebidas", format_currency(dados['val_beb']))
+        else:
+            st.warning("Sem itens")
+
+    diff = dados['alvo'] - dados['val_total']
+    
+    cor_border = "#10b981" if diff == 0 else "#f97316"
+    cor_text = "#a7f3d0" if diff == 0 else "#fdba74" 
+    
+    st.markdown("---")
+    
+    if qty_jbc > 0 or qty_double > 0:
+        valor_combo1 = qty_jbc * COMBO_1_PRECO
+        valor_combo2 = qty_double * COMBO_2_PRECO
+        valor_cebolas = qty_cebola * 0.50
+        
+        st.markdown(f"""
+        <div style="background-color: rgba(65, 105, 225, 0.1); border: 2px solid #4169E1; border-radius: 10px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);">
+            <h4 style="margin:0; color: #87CEEB; text-align: center;">🎁 RESUMO DOS COMBOS</h4>
+            {f'<p style="text-align: center; color: #e5e7eb; margin: 5px 0;"><b>Combo 1:</b> {qty_jbc} unidade(s) x R$ 25,00 = <b>{format_currency(valor_combo1)}</b></p>' if qty_jbc > 0 else ''}
+            {f'<p style="text-align: center; color: #e5e7eb; margin: 5px 0;"><b>Combo 2:</b> {qty_double} unidade(s) x R$ 30,00 = <b>{format_currency(valor_combo2)}</b></p>' if qty_double > 0 else ''}
+            {f'<p style="text-align: center; color: #FFD700; margin: 5px 0; font-size: 14px;">+ {qty_cebola} Cebola(s) Adicional(is) x R$ 0,50 = <b>{format_currency(valor_cebolas)}</b></p>' if qty_cebola > 0 else ''}
+            <p style="text-align: center; color: #90EE90; margin: 10px 0; font-size: 16px; border-top: 1px solid #4169E1; padding-top: 10px;">
+                <b>Total Combos: {format_currency(valor_combo1 + valor_combo2 + valor_cebolas)}</b>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div style="background-color: rgba(0, 0, 51, 0.3); border: 3px solid {cor_border}; border-radius: 15px; padding: 25px; text-align: center; margin-top: 10px; margin-bottom: 20px; backdrop-filter: blur(10px);">
+        <h3 style="margin:0; color: {cor_text}; font-family: sans-serif;">💰 VALOR TOTAL DA COMBINAÇÃO</h3>
+        <p style="font-size: 45px; font-weight: 800; margin: 10px 0; color: {cor_text};">
+            {format_currency(dados['val_total'])}
+        </p>
+        <p style="font-size: 16px; margin: 0; color: #e5e7eb;">
+            Meta: <b>{format_currency(dados['alvo'])}</b> | Diferença: <b style="color: {'#fca5a5' if diff != 0 else '#86efac'}">{format_currency(abs(diff))}</b>
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -304,7 +540,7 @@ st.set_page_config(
     initial_sidebar_state=CONFIG["sidebar_state"]
 )
 
-# --- CSS GLOBAL (ORIGINAL COM CORREÇÕES) ---
+# --- CSS GLOBAL COM LOGO ANIMADA ---
 st.markdown("""
 <style>
     .stApp {
@@ -319,26 +555,84 @@ st.markdown("""
         vertical-align: middle !important;
         color: #e0e0e0 !important;
     }
+    div[data-testid="stTable"] table {
+        margin-left: auto;
+        margin-right: auto;
+    }
     
     .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput, div[data-baseweb="select"] > div {
         background-color: #1a1c24 !important; 
         color: white !important;
         border: 1px solid #444 !important;
     }
+    .stSelectbox div[data-baseweb="select"] span {
+        color: white !important;
+    }
 
-    /* LOGO ANIMADA */
+    div[role="radiogroup"] {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        width: 100%;
+        background-color: transparent;
+        gap: 15px;
+    }
+    
+    div[role="radiogroup"] label {
+        background-color: transparent !important;
+        border: none !important;
+        padding: 5px 15px !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-right: 2px solid #555 !important;
+        border-radius: 0 !important;
+    }
+
+    div[role="radiogroup"] label:last-child {
+        border-right: none !important;
+    }
+
+    div[role="radiogroup"] label > div:first-child {
+        display: none !important;
+    }
+
+    div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
+        font-size: 16px !important; 
+        white-space: nowrap !important;
+        font-weight: 500;
+        margin: 0;
+        padding-bottom: 2px;
+        color: #b0b0b0; 
+        border-bottom: 2px solid transparent; 
+    }
+
+    div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {
+        color: #ff4b4b !important;
+        border-bottom: 2px solid #ff4b4b !important;
+    }
+
+    div[role="radiogroup"] label[data-checked="true"] div[data-testid="stMarkdownContainer"] p {
+        color: #ff4b4b !important;
+        border-bottom: 2px solid #ff4b4b !important;
+        font-weight: bold;
+    }
+    
+    /* LOGO ANIMADA COM FAÍSCAS */
     .logo-container {
         position: relative;
-        width: 300px;
-        height: 300px;
+        width: 400px;
+        height: 400px;
         margin: 0 auto 20px auto;
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 99999 !important;
     }
 
     .logo-animada {
-        width: 250px;
+        width: 400px;
         height: auto;
         position: relative;
         z-index: 20; 
@@ -354,20 +648,34 @@ st.markdown("""
         z-index: 1;
         opacity: 0;
         box-shadow: 0 0 5px #FFD700, 0 0 10px #FF8C00;
+        pointer-events: none;
     }
 
     @keyframes steady-rise-high {
-        0% { opacity: 0; transform: translateY(0) scale(0.5); }
-        10% { opacity: 0.8; }
-        80% { opacity: 0.6; }
-        100% { opacity: 0; transform: translateY(-400px) scale(0.1); }
+        0% {
+            opacity: 0;
+            transform: translateY(0) scale(0.5);
+        }
+        10% {
+             opacity: 0.8; 
+        }
+        80% {
+            opacity: 0.6; 
+        }
+        100% {
+            opacity: 0; 
+            transform: translateY(-550px) scale(0.1); 
+        }
     }
 
-    .s1 { bottom: 20px; left: 10%; animation: steady-rise-high 5s linear infinite; }
-    .s2 { bottom: 10px; left: 30%; animation: steady-rise-high 6s linear infinite; animation-delay: 1.5s; }
-    .s3 { bottom: 25px; left: 50%; animation: steady-rise-high 5.5s linear infinite; animation-delay: 3.0s; }
-    .s4 { bottom: 15px; left: 70%; animation: steady-rise-high 4.5s linear infinite; animation-delay: 0.5s; }
-    .s5 { bottom: 5px;  left: 90%; animation: steady-rise-high 5.2s linear infinite; animation-delay: 2.2s; }
+    .s1 { bottom: 20px; left: 10%; animation: steady-rise-high 5s linear infinite; animation-delay: 0s; }
+    .s2 { bottom: 10px; left: 20%; animation: steady-rise-high 6s linear infinite; animation-delay: 1.5s; }
+    .s3 { bottom: 25px; left: 35%; animation: steady-rise-high 5.5s linear infinite; animation-delay: 3.0s; }
+    .s4 { bottom: 15px; left: 50%; animation: steady-rise-high 4.5s linear infinite; animation-delay: 0.5s; }
+    .s5 { bottom: 5px;  left: 65%; animation: steady-rise-high 5.2s linear infinite; animation-delay: 2.2s; }
+    .s6 { bottom: 12px; left: 80%; animation: steady-rise-high 4.8s linear infinite; animation-delay: 1.2s; }
+    .s7 { bottom: 18px; left: 90%; animation: steady-rise-high 5.8s linear infinite; animation-delay: 2.8s; }
+    .s8 { bottom: 8px;  left: 30%; animation: steady-rise-high 5.0s linear infinite; animation-delay: 0.8s; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -384,72 +692,306 @@ if 'resultado_arquivo' not in st.session_state:
 if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
-# --- LOGO ANIMADA ---
-logo_base64 = get_logo_base64()
-
-if logo_base64:
-    st.markdown(
-        f"""
-        <div class="logo-container">
-            <div class="sparkle s1"></div>
-            <div class="sparkle s2"></div>
-            <div class="sparkle s3"></div>
-            <div class="sparkle s4"></div>
-            <div class="sparkle s5"></div>
-            <img src="data:image/png;base64,{logo_base64}" class="logo-animada">
+# --- LOGO ANIMADA (CORRIGIDA) ---
+try:
+    logo_base64 = get_logo_base64()
+    
+    if logo_base64:
+        # AQUI FOI FEITA A CORREÇÃO: image/png;base64,...
+        st.markdown(
+            f"""
+            <div class="logo-container">
+                <div class="sparkle s1"></div>
+                <div class="sparkle s2"></div>
+                <div class="sparkle s3"></div>
+                <div class="sparkle s4"></div>
+                <div class="sparkle s5"></div>
+                <div class="sparkle s6"></div>
+                <div class="sparkle s7"></div>
+                <div class="sparkle s8"></div>
+                <img src="image/png;base64,{logo_base64}" class="logo-animada">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown("""
+        <div class='logo-container'>
+            <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
+            <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown("""
-    <div class='logo-container'>
-        <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-st.markdown("<h2 style='text-align: center; color: #ff4b4b;'>🍔 Clips Burger - Gestão</h2>", unsafe_allow_html=True)
+except Exception as e:
+    st.error(f"Erro na logo: {e}")
+
+st.markdown("""
+<div style='text-align: center; margin-bottom: 20px;'>
+    <h2 style='color: #ff4b4b; margin: 0;'>🍔 Sistema de Gestão - Clips Burger</h2>
+    <p style='color: #b0b0b0; margin-top: 5px;'>Análise inteligente de vendas e combinações</p>
+</div>
+""", unsafe_allow_html=True)
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Configurações")
-    population_size = st.slider("População", 20, 200, 100)
-    generations = st.slider("Gerações", 10, 500, 200)
+    st.header("⚙️ Configurações do Algoritmo")
+    
+    st.info("🧬 Algoritmo Genético com 2 Combos")
+    
+    population_size = st.slider(
+        "Tamanho da População", 
+        min_value=20, 
+        max_value=200, 
+        value=100, 
+        step=10,
+        help="Maior população = melhor resultado, mas mais lento"
+    )
+    
+    generations = st.slider(
+        "Número de Gerações", 
+        min_value=10, 
+        max_value=500, 
+        value=200, 
+        step=10,
+        help="Mais gerações = melhor convergência"
+    )
+    
+    st.divider()
+    
+    st.caption("⚠️ **Regra Principal:**")
+    st.caption("**Total Sanduíches = Total Latas**")
+    st.caption("")
+    st.caption("🎁 **Combo 1:** JBC + Lata = R$ 25,00")
+    st.caption("🎁 **Combo 2:** Double + Lata = R$ 30,00")
+    st.caption("🧅 **Cebola:** Ajuste fino (R$ 0,50)")
 
-# --- MENU ---
+# --- MENU DE NAVEGAÇÃO ---
 menu_opcoes = ["📈 Resumo das Vendas", "🧩 Análise com Arquivo", "💸 Calculadora PIX"]
-escolha_menu = st.radio("Navegação", menu_opcoes, horizontal=True, label_visibility="collapsed")
+escolha_menu = st.radio("Navegação", menu_opcoes, horizontal=True, label_visibility="collapsed", key="nav_menu")
 
-# --- CONTEÚDO ---
+# --- CONTEÚDO DAS ABAS ---
+
 if escolha_menu == "📈 Resumo das Vendas":
-    st.subheader("📤 Upload de Dados")
-    arquivo = st.file_uploader("Envie o arquivo (.csv ou .xlsx)", type=["csv", "xlsx"])
+    st.header("📤 Upload de Dados")
+    arquivo = st.file_uploader("Envie o arquivo de transações (.csv ou .xlsx)", 
+                             type=["csv", "xlsx"])
+    
     if arquivo:
-        st.success("Arquivo carregado!")
+        try:
+            with st.spinner("Processando arquivo..."):
+                if arquivo.name.endswith(".csv"):
+                    try:
+                        df = pd.read_csv(arquivo, sep=';', encoding='utf-8', dtype=str)
+                    except pd.errors.ParserError:
+                        arquivo.seek(0)
+                        try:
+                            df = pd.read_csv(arquivo, sep=',', encoding='utf-8', dtype=str)
+                        except:
+                            arquivo.seek(0)
+                            df = pd.read_csv(arquivo, engine='python', dtype=str)
+                else:
+                    df = pd.read_excel(arquivo, dtype=str)
+                
+                required_cols = ['Tipo', 'Bandeira', 'Valor']
+                if not all(col in df.columns for col in required_cols):
+                    st.error(f"Erro: O arquivo precisa conter as colunas: {', '.join(required_cols)}")
+                    st.stop()
+
+                df['Tipo'] = df['Tipo'].str.lower().str.strip().fillna('desconhecido')
+                df['Bandeira'] = df['Bandeira'].str.lower().str.strip().fillna('desconhecida')
+                df['Valor'] = pd.to_numeric(
+                    df['Valor'].str.replace('.', '').str.replace(',', '.'), 
+                    errors='coerce')
+                df = df.dropna(subset=['Valor'])
+                
+                df['Forma'] = (df['Tipo'] + ' ' + df['Bandeira']).map(FORMAS_PAGAMENTO)
+                df = df.dropna(subset=['Forma'])
+                
+                if df.empty:
+                    st.warning("Nenhuma transação válida encontrada.")
+                    st.stop()
+
+                vendas = df.groupby('Forma')['Valor'].sum().reset_index()
+                total_vendas = vendas['Valor'].sum()
+                
+                st.session_state.uploaded_data = df
+                st.session_state.vendas_data = vendas
+                st.session_state.total_vendas = total_vendas
+            
+            st.header("📊 Visualização de Dados")
+            
+            st.subheader("Total de Vendas por Forma de Pagamento")
+            bar_chart = create_altair_chart(
+                vendas, 'bar', 'Forma', 'Valor', 'Forma',
+                title=''
+            ).properties(
+                width=800,
+                height=500
+            )
+            st.altair_chart(bar_chart, use_container_width=True)
+            
+            st.header("⚙️ Parâmetros Financeiros")
+            col1, col2 = st.columns(2)
+            with col1:
+                salario_minimo = st.number_input("Salário Mínimo (R$)", value=1518.0, step=50.0)
+            with col2:
+                custo_contadora = st.number_input("Custo com Contadora (R$)", value=316.0, step=10.0)
+            
+            st.header("💰 Resultados Financeiros")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Faturamento Bruto", format_currency(total_vendas))
+            with col2:
+                imposto_simples = total_vendas * 0.06
+                st.metric("Imposto Simples (6%)", format_currency(imposto_simples))
+            with col3:
+                fgts = salario_minimo * 0.08
+                ferias = (salario_minimo / 12) * (4/3)
+                decimo_terceiro = salario_minimo / 12
+                custo_funcionario = salario_minimo + fgts + ferias + decimo_terceiro
+                st.metric("Custo Funcionário CLT", format_currency(custo_funcionario))
+            
+            total_custos = imposto_simples + custo_funcionario + custo_contadora
+            lucro_estimado = total_vendas - total_custos
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total de Custos", format_currency(total_custos))
+            with col2:
+                st.metric("Lucro Estimado", format_currency(lucro_estimado))
+            
+            st.header("🔍 Detalhamento")
+            
+            tab_detalhes1, tab_detalhes2, tab_detalhes3 = st.tabs([
+                "📝 Composição de Custos", 
+                "📚 Explicação dos Cálculos",
+                "🍰 Gráfico de Composição"
+            ])
+            
+            with tab_detalhes1:
+                st.subheader("Composição dos Custos")
+                st.markdown(f"""
+                - **Imposto Simples Nacional (6%)**: {format_currency(imposto_simples)}
+                - **Custo Funcionário CLT**: {format_currency(custo_funcionario)}
+                - **Custo Contadora**: {format_currency(custo_contadora)}
+                """)
+            
+            with tab_detalhes2:
+                st.subheader("Fórmulas Utilizadas")
+                st.markdown("""
+                **1. Imposto Simples Nacional** `Faturamento Bruto × 6%`  
+                **2. Custo Funcionário CLT** `Salário + FGTS (8%) + Férias (1 mês + 1/3) + 13º Salário`  
+                **3. Total de Custos** `Imposto + Funcionário + Contadora`  
+                **4. Lucro Estimado** `Faturamento Bruto - Total de Custos`
+                """)
+            
+            with tab_detalhes3:
+                st.subheader("Composição dos Custos")
+                custos_df = pd.DataFrame({
+                    'Item': ['Impostos', 'Funcionário', 'Contadora'],
+                    'Valor': [imposto_simples, custo_funcionario, custo_contadora]
+                })
+                
+                graf_composicao = alt.Chart(custos_df).mark_arc().encode(
+                    theta='Valor',
+                    color='Item',
+                    tooltip=['Item', alt.Tooltip('Valor', format='$.2f')]
+                ).properties(
+                    width=600,
+                    height=500
+                )
+                st.altair_chart(graf_composicao, use_container_width=True)
+            
+            st.header("📑 Relatório")
+            if st.button("Gerar Relatório PDF"):
+                with st.spinner("Gerando relatório..."):
+                    pdf_buffer = create_pdf_report(
+                        df, vendas, total_vendas, imposto_simples, custo_funcionario, 
+                        custo_contadora, total_custos, lucro_estimado, CONFIG["logo_path"]
+                    )
+                    b64_pdf = base64.b64encode(pdf_buffer.getvalue()).decode()
+                    pdf_display = f'<a href="application/pdf;base64,{b64_pdf}" download="relatorio_clips_burger.pdf">📥 Clique aqui para baixar o Relatório PDF</a>'
+                    st.markdown(pdf_display, unsafe_allow_html=True)
+                    st.success("Relatório gerado com sucesso!")
+            
+        except Exception as e:
+            st.error(f"Ocorreu um erro ao processar o arquivo: {str(e)}")
+            st.exception(e)
+    else:
+        st.info("Aguardando upload do arquivo de transações.")
 
 elif escolha_menu == "🧩 Análise com Arquivo":
-    st.subheader("🧩 Otimizador")
-    target_val = st.number_input("Valor Alvo (R$)", min_value=0.0, value=100.0)
-    if st.button("🚀 Otimizar"):
-        with st.spinner("Calculando..."):
-            res, _ = buscar_combinacao_two_combos(target_val, population_size, generations)
-            st.session_state.resultado_arquivo = {'resultado': res, 'alvo': target_val}
+    st.header("🧩 Análise de Combinações por Arquivo")
     
-    if st.session_state.resultado_arquivo:
-        res = st.session_state.resultado_arquivo['resultado']
-        st.write("### Resultado:")
-        for k, v in res.items():
-            st.write(f"**{v}x** {k}")
+    if st.session_state.vendas_data is not None:
+        vendas = st.session_state.vendas_data
+        
+        forma_selecionada = st.selectbox(
+            "Selecione a forma de pagamento",
+            options=vendas['Forma'].tolist(),
+            format_func=lambda x: f"{x} ({format_currency(vendas.loc[vendas['Forma'] == x, 'Valor'].iloc[0])})"
+        )
+        
+        valor_selecionado = vendas.loc[vendas['Forma'] == forma_selecionada, 'Valor'].iloc[0]
+        
+        if st.button("🔎 Analisar Combinação", type="primary", use_container_width=True):
+            with st.spinner("Calculando a melhor combinação com 2 Combos..."):
+                dados = gerar_dados_geneticos_two_combos(
+                    valor_selecionado, 
+                    population_size, 
+                    generations
+                )
+                st.session_state.resultado_arquivo = dados
+        
+        if st.session_state.resultado_arquivo:
+            st.divider()
+            renderizar_resultados(st.session_state.resultado_arquivo)
+        
+    else:
+        st.info("Faça o upload de dados na aba 'Resumo das Vendas' primeiro.")
 
 elif escolha_menu == "💸 Calculadora PIX":
-    st.subheader("💸 Conciliação PIX")
-    pix_input = st.text_area("Valores (um por linha)")
-    if st.button("Calcular"):
-        try:
-            vals = [float(x.strip().replace(',', '.')) for x in pix_input.split('\n') if x.strip()]
-            st.metric("Total", format_currency(sum(vals)))
-        except:
-            st.error("Erro nos valores.")
+    st.header("💸 Calculadora Rápida (PIX/Manual)")
+    st.markdown("Digite um valor e descubra quantos Combos 1 + Combos 2 + Cebolas formam esse total.")
+    
+    col_input, col_action = st.columns([0.4, 0.6])
+    
+    with col_input:
+        valor_pix_input = st.number_input(
+            "Digite o Valor (R$):", 
+            min_value=0.0, 
+            step=1.0, 
+            format="%.2f",
+            help="Insira o valor para análise"
+        )
+    
+    with col_action:
+        st.write("")
+        st.write("")
+        if st.button("🚀 Calcular Combinação", type="primary", use_container_width=True):
+            if valor_pix_input > 0:
+                with st.spinner("Calculando a melhor combinação..."):
+                    dados = gerar_dados_geneticos_two_combos(
+                        valor_pix_input, 
+                        population_size, 
+                        generations
+                    )
+                    st.session_state.resultado_pix = dados
+            else:
+                st.error("Por favor, insira um valor maior que zero.")
 
-st.markdown("---")
-st.markdown("<p style='text-align: center; color: #64748b;'>© 2026 Clips Burger</p>", unsafe_allow_html=True)
+    if st.session_state.resultado_pix:
+        st.divider()
+        renderizar_resultados(st.session_state.resultado_pix)
+
+# Rodapé
+st.divider()
+st.markdown(
+    """
+    <div style='text-align: center; color: gray; font-size: small;'>
+        © 2025 Clips Burger - Sistema de Gestão de Combos | Desenvolvido com ❤️ e Streamlit
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
