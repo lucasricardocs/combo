@@ -94,7 +94,6 @@ def save_data(df):
 
 def get_logo_base64():
     """Tenta carregar a logo localmente ou da URL"""
-    # Primeiro tenta local
     if os.path.exists(CONFIG["logo_path"]):
         try:
             with open(CONFIG["logo_path"], "rb") as f:
@@ -103,7 +102,6 @@ def get_logo_base64():
         except Exception as e:
             st.warning(f"Erro ao carregar logo local: {e}")
     
-    # Se não encontrar local, tenta da URL
     try:
         with urllib.request.urlopen(CONFIG["logo_url"]) as response:
             data = response.read()
@@ -112,15 +110,17 @@ def get_logo_base64():
         st.warning(f"Erro ao carregar logo da URL: {e}")
         return None
 
+def get_img_as_base64(file_path):
+    """Função auxiliar para converter imagem local para base64"""
+    with open(file_path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
 # --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS ---
 def create_individual_two_combos(max_combos=100):
-    """
-    Cria um indivíduo respeitando: Total Sanduíches = Total Latas
-    - JBC + Double = Latas
-    """
     num_jbc = random.randint(0, max_combos)
     num_double = random.randint(0, max_combos)
-    num_latas = num_jbc + num_double  # REGRA: soma dos sanduíches
+    num_latas = num_jbc + num_double
     num_cebolas = random.randint(0, 50)
     
     individual = {
@@ -133,7 +133,6 @@ def create_individual_two_combos(max_combos=100):
     return individual
 
 def evaluate_fitness_two_combos(individual, target_value):
-    """Avalia fitness com penalização se JBC + Double != Latas"""
     preco_jbc = CARDAPIOS["sanduiches"]["JBC (Junior Bacon Cheese)"]
     preco_double = CARDAPIOS["sanduiches"]["Double Cheese Burger"]
     preco_lata = CARDAPIOS["bebidas"]["Refri Lata"]
@@ -144,7 +143,6 @@ def evaluate_fitness_two_combos(individual, target_value):
     qty_lata = individual.get("Refri Lata", 0)
     qty_cebola = individual.get("Cebola Adicional", 0)
     
-    # PENALIZAÇÃO: Total Sanduíches deve = Total Latas
     total_sanduiches = qty_jbc + qty_double
     if total_sanduiches != qty_lata:
         return 1_000_000 + abs(total_sanduiches - qty_lata) * 10000
@@ -158,7 +156,6 @@ def evaluate_fitness_two_combos(individual, target_value):
     return score
 
 def crossover_two_combos(parent1, parent2):
-    """Crossover mantendo a regra: JBC + Double = Latas"""
     if random.random() < 0.5:
         num_jbc = parent1.get("JBC (Junior Bacon Cheese)", 0)
     else:
@@ -169,7 +166,7 @@ def crossover_two_combos(parent1, parent2):
     else:
         num_double = parent2.get("Double Cheese Burger", 0)
     
-    num_latas = num_jbc + num_double  # Mantém a regra
+    num_latas = num_jbc + num_double
     
     if random.random() < 0.5:
         num_cebolas = (parent1.get("Cebola Adicional", 0) + parent2.get("Cebola Adicional", 0)) // 2
@@ -184,23 +181,18 @@ def crossover_two_combos(parent1, parent2):
     }
 
 def mutate_two_combos(individual, mutation_rate=0.3):
-    """Mutação mantendo a regra: JBC + Double = Latas"""
     new_individual = individual.copy()
     
-    # Mutar JBC
     if random.random() < mutation_rate:
         change = random.choice([-5, -3, -1, 1, 3, 5])
         new_individual["JBC (Junior Bacon Cheese)"] = max(0, new_individual["JBC (Junior Bacon Cheese)"] + change)
     
-    # Mutar Double
     if random.random() < mutation_rate:
         change = random.choice([-5, -3, -1, 1, 3, 5])
         new_individual["Double Cheese Burger"] = max(0, new_individual["Double Cheese Burger"] + change)
     
-    # Recalcular latas para manter a regra
     new_individual["Refri Lata"] = new_individual["JBC (Junior Bacon Cheese)"] + new_individual["Double Cheese Burger"]
     
-    # Mutar cebolas
     if random.random() < mutation_rate:
         change = random.choice([-3, -2, -1, 1, 2, 3])
         new_individual["Cebola Adicional"] = max(0, new_individual.get("Cebola Adicional", 0) + change)
@@ -208,7 +200,6 @@ def mutate_two_combos(individual, mutation_rate=0.3):
     return new_individual
 
 def genetic_algorithm_two_combos(target_value, population_size=50, generations=100, max_combos=100):
-    """Algoritmo genético com 2 combos"""
     if target_value <= 0:
         return {}
     
@@ -249,7 +240,6 @@ def genetic_algorithm_two_combos(target_value, population_size=50, generations=1
     return final_combination
 
 def buscar_combinacao_two_combos(target_value, max_time_seconds=5, population_size=100, generations=200):
-    """Busca a melhor combinação com 2 combos"""
     start_time = time.time()
     best_global_individual = {}
     best_global_diff = float('inf')
@@ -430,9 +420,8 @@ def create_altair_chart(data, chart_type, x_col, y_col, color_col=None, title=No
     )
     return chart.interactive() if interactive else chart
 
-# --- LÓGICA DE PROCESSAMENTO GENÉTICO (SEPARADA) ---
+# --- LÓGICA DE PROCESSAMENTO GENÉTICO ---
 def gerar_dados_geneticos_two_combos(valor_alvo_total, pop_size, n_gens):
-    """Gera dados usando o algoritmo genético com 2 combos"""
     combinacao, ciclos = buscar_combinacao_two_combos(
         valor_alvo_total, 
         max_time_seconds=5, 
@@ -440,7 +429,6 @@ def gerar_dados_geneticos_two_combos(valor_alvo_total, pop_size, n_gens):
         generations=n_gens
     )
     
-    # Separar sanduíches e bebidas
     sanduiches = {}
     bebidas = {}
     
@@ -450,7 +438,6 @@ def gerar_dados_geneticos_two_combos(valor_alvo_total, pop_size, n_gens):
         elif item in CARDAPIOS["bebidas"]:
             bebidas[item] = qty
     
-    # Calcular valores
     val_sand = sum(CARDAPIOS["sanduiches"][k] * v for k, v in sanduiches.items())
     val_beb = sum(CARDAPIOS["bebidas"][k] * v for k, v in bebidas.items())
     val_total = val_sand + val_beb
@@ -469,20 +456,17 @@ def renderizar_resultados(dados):
     st.subheader(f"Valor Alvo: {format_currency(dados['alvo'])}")
     st.caption(f"🤖 O algoritmo realizou {dados['ciclos']} ciclos completos de evolução.")
     
-    # Verificar combos
     qty_jbc = dados['sanduiches'].get("JBC (Junior Bacon Cheese)", 0)
     qty_double = dados['sanduiches'].get("Double Cheese Burger", 0)
     qty_lata = dados['bebidas'].get("Refri Lata", 0)
     qty_cebola = dados['sanduiches'].get("Cebola Adicional", 0)
     
-    # Mostrar combos identificados
     if qty_jbc > 0:
         st.success(f"✅ **Combo 1 identificado:** {qty_jbc} unidades (JBC + Refri Lata) = {format_currency(qty_jbc * COMBO_1_PRECO)}")
     
     if qty_double > 0:
         st.success(f"✅ **Combo 2 identificado:** {qty_double} unidades (Double Cheese + Refri Lata) = {format_currency(qty_double * COMBO_2_PRECO)}")
     
-    # Validação da regra
     if qty_jbc + qty_double == qty_lata:
         st.info(f"✅ **Regra respeitada:** Total de Sanduíches ({qty_jbc + qty_double}) = Total de Latas ({qty_lata})")
     else:
@@ -532,7 +516,6 @@ def renderizar_resultados(dados):
     
     st.markdown("---")
     
-    # Box de resumo dos combos
     if qty_jbc > 0 or qty_double > 0:
         valor_combo1 = qty_jbc * COMBO_1_PRECO
         valor_combo2 = qty_double * COMBO_2_PRECO
@@ -550,7 +533,6 @@ def renderizar_resultados(dados):
         </div>
         """, unsafe_allow_html=True)
     
-    # Box do valor total
     st.markdown(f"""
     <div style="background-color: rgba(0, 0, 51, 0.3); border: 3px solid {cor_border}; border-radius: 15px; padding: 25px; text-align: center; margin-top: 10px; margin-bottom: 20px; backdrop-filter: blur(10px);">
         <h3 style="margin:0; color: {cor_text}; font-family: sans-serif;">💰 VALOR TOTAL DA COMBINAÇÃO</h3>
@@ -570,7 +552,7 @@ st.set_page_config(
     initial_sidebar_state=CONFIG["sidebar_state"]
 )
 
-# --- CSS GLOBAL ---
+# --- CSS GLOBAL COM LOGO ANIMADA ---
 st.markdown("""
 <style>
     .stApp {
@@ -649,26 +631,63 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* LOGO SOBREPONDO TUDO */
+    /* LOGO ANIMADA COM FAÍSCAS */
     .logo-container {
         position: relative;
+        width: 400px;
+        height: 400px;
+        margin: 0 auto 20px auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         z-index: 99999 !important;
-        text-align: center;
-        margin-bottom: 20px;
-        padding: 20px 0;
     }
-    
-    .logo-container img {
+
+    .logo-animada {
+        width: 400px;
+        height: auto;
         position: relative;
-        z-index: 99999 !important;
-        filter: drop-shadow(0 0 20px rgba(255, 75, 75, 0.8)) drop-shadow(0 0 40px rgba(255, 75, 75, 0.4));
-        animation: logoFloat 3s ease-in-out infinite;
+        z-index: 20; 
     }
-    
-    @keyframes logoFloat {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
+
+    .sparkle {
+        position: absolute;
+        width: 8px; 
+        height: 8px;
+        background-color: #FF4500;
+        border-radius: 50%;
+        bottom: 10px;
+        z-index: 1;
+        opacity: 0;
+        box-shadow: 0 0 5px #FFD700, 0 0 10px #FF8C00;
+        pointer-events: none;
     }
+
+    @keyframes steady-rise-high {
+        0% {
+            opacity: 0;
+            transform: translateY(0) scale(0.5);
+        }
+        10% {
+             opacity: 0.8; 
+        }
+        80% {
+            opacity: 0.6; 
+        }
+        100% {
+            opacity: 0; 
+            transform: translateY(-550px) scale(0.1); 
+        }
+    }
+
+    .s1 { bottom: 20px; left: 10%; animation: steady-rise-high 5s linear infinite; animation-delay: 0s; }
+    .s2 { bottom: 10px; left: 20%; animation: steady-rise-high 6s linear infinite; animation-delay: 1.5s; }
+    .s3 { bottom: 25px; left: 35%; animation: steady-rise-high 5.5s linear infinite; animation-delay: 3.0s; }
+    .s4 { bottom: 15px; left: 50%; animation: steady-rise-high 4.5s linear infinite; animation-delay: 0.5s; }
+    .s5 { bottom: 5px;  left: 65%; animation: steady-rise-high 5.2s linear infinite; animation-delay: 2.2s; }
+    .s6 { bottom: 12px; left: 80%; animation: steady-rise-high 4.8s linear infinite; animation-delay: 1.2s; }
+    .s7 { bottom: 18px; left: 90%; animation: steady-rise-high 5.8s linear infinite; animation-delay: 2.8s; }
+    .s8 { bottom: 8px;  left: 30%; animation: steady-rise-high 5.0s linear infinite; animation-delay: 0.8s; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -685,21 +704,54 @@ if 'resultado_arquivo' not in st.session_state:
 if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
-# --- LOGO ---
-logo_base64 = get_logo_base64()
-
-if logo_base64:
-    st.markdown(
-        f'<div class="logo-container"><img src="image/png;base64,{logo_base64}" width="350"></div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown("""
-    <div class='logo-container'>
-        <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
-        <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
-    </div>
-    """, unsafe_allow_html=True)
+# --- LOGO ANIMADA ---
+try:
+    if os.path.exists(CONFIG["logo_path"]):
+        img_base64 = get_img_as_base64(CONFIG["logo_path"])
+        st.markdown(
+            f"""
+            <div class="logo-container">
+                <div class="sparkle s1"></div>
+                <div class="sparkle s2"></div>
+                <div class="sparkle s3"></div>
+                <div class="sparkle s4"></div>
+                <div class="sparkle s5"></div>
+                <div class="sparkle s6"></div>
+                <div class="sparkle s7"></div>
+                <div class="sparkle s8"></div>
+                <img src="image/png;base64,{img_base64}" class="logo-animada">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        logo_base64 = get_logo_base64()
+        if logo_base64:
+            st.markdown(
+                f"""
+                <div class="logo-container">
+                    <div class="sparkle s1"></div>
+                    <div class="sparkle s2"></div>
+                    <div class="sparkle s3"></div>
+                    <div class="sparkle s4"></div>
+                    <div class="sparkle s5"></div>
+                    <div class="sparkle s6"></div>
+                    <div class="sparkle s7"></div>
+                    <div class="sparkle s8"></div>
+                    <img src="image/png;base64,{logo_base64}" class="logo-animada">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown("""
+            <div class='logo-container'>
+                <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
+                <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
+            </div>
+            """, unsafe_allow_html=True)
+except Exception as e:
+    st.error(f"Erro na logo: {e}")
 
 st.markdown("""
 <div style='text-align: center; margin-bottom: 20px;'>
