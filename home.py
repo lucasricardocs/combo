@@ -16,6 +16,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import io
 import base64
+import urllib.request
 
 # --- CONSTANTES E CONFIGURAÇÕES ---
 CONFIG = {
@@ -23,7 +24,8 @@ CONFIG = {
     "layout": "centered",
     "sidebar_state": "expanded",
     "excel_file": "recebimentos.xlsx",
-    "logo_path": "logo.png"
+    "logo_path": "logo.png",
+    "logo_url": "https://raw.githubusercontent.com/lucasricardocs/combo/main/logo.png"
 }
 
 CARDAPIOS = {
@@ -36,6 +38,10 @@ CARDAPIOS = {
         "Refri Lata": 15.00
     }
 }
+
+# Preços dos combos
+COMBO_1_PRECO = 25.00  # JBC + Refri Lata
+COMBO_2_PRECO = 30.00  # Double Cheese + Refri Lata
 
 FORMAS_PAGAMENTO = {
     'crédito à vista elo': 'Crédito Elo',
@@ -86,45 +92,64 @@ def save_data(df):
     except Exception as e:
         st.error(f"Erro ao salvar dados: {e}")
 
-def round_to_50_or_00(value):
-    return int(round(value))
+def get_logo_base64():
+    """Tenta carregar a logo localmente ou da URL"""
+    # Primeiro tenta local
+    if os.path.exists(CONFIG["logo_path"]):
+        try:
+            with open(CONFIG["logo_path"], "rb") as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+        except Exception as e:
+            st.warning(f"Erro ao carregar logo local: {e}")
+    
+    # Se não encontrar local, tenta da URL
+    try:
+        with urllib.request.urlopen(CONFIG["logo_url"]) as response:
+            data = response.read()
+        return base64.b64encode(data).decode()
+    except Exception as e:
+        st.warning(f"Erro ao carregar logo da URL: {e}")
+        return None
 
-def calculate_combination_value(combination, item_prices):
-    return sum(item_prices.get(name, 0) * quantity for name, quantity in combination.items())
-
-# --- FUNÇÕES PARA ALGORITMO GENÉTICO COM RESTRIÇÃO DE COMBO ---
-def create_individual_combo(item_prices, max_combos=100):
+# --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS ---
+def create_individual_two_combos(max_combos=100):
     """
-    Cria um indivíduo respeitando a regra do combo:
-    - Número de JBC = Número de Refri Lata
-    - Cebola pode variar livremente
+    Cria um indivíduo respeitando: Total Sanduíches = Total Latas
+    - JBC + Double = Latas
     """
-    num_combos = random.randint(1, max_combos)
+    num_jbc = random.randint(0, max_combos)
+    num_double = random.randint(0, max_combos)
+    num_latas = num_jbc + num_double  # REGRA: soma dos sanduíches
     num_cebolas = random.randint(0, 50)
     
     individual = {
-        "JBC (Junior Bacon Cheese)": num_combos,
-        "Refri Lata": num_combos,
+        "JBC (Junior Bacon Cheese)": num_jbc,
+        "Double Cheese Burger": num_double,
+        "Refri Lata": num_latas,
         "Cebola Adicional": num_cebolas
     }
     
     return individual
 
-def evaluate_fitness_combo(individual, target_value):
-    """Avalia fitness com penalização se JBC != Refri Lata"""
+def evaluate_fitness_two_combos(individual, target_value):
+    """Avalia fitness com penalização se JBC + Double != Latas"""
     preco_jbc = CARDAPIOS["sanduiches"]["JBC (Junior Bacon Cheese)"]
+    preco_double = CARDAPIOS["sanduiches"]["Double Cheese Burger"]
     preco_lata = CARDAPIOS["bebidas"]["Refri Lata"]
     preco_cebola = CARDAPIOS["sanduiches"]["Cebola Adicional"]
     
     qty_jbc = individual.get("JBC (Junior Bacon Cheese)", 0)
+    qty_double = individual.get("Double Cheese Burger", 0)
     qty_lata = individual.get("Refri Lata", 0)
     qty_cebola = individual.get("Cebola Adicional", 0)
     
-    # Penalização severa se JBC != Lata
-    if qty_jbc != qty_lata:
-        return 1_000_000 + abs(qty_jbc - qty_lata) * 1000
+    # PENALIZAÇÃO: Total Sanduíches deve = Total Latas
+    total_sanduiches = qty_jbc + qty_double
+    if total_sanduiches != qty_lata:
+        return 1_000_000 + abs(total_sanduiches - qty_lata) * 10000
     
-    total = (preco_jbc * qty_jbc) + (preco_lata * qty_lata) + (preco_cebola * qty_cebola)
+    total = (preco_jbc * qty_jbc) + (preco_double * qty_double) + (preco_lata * qty_lata) + (preco_cebola * qty_cebola)
     
     if total > target_value:
         return 1_000_000 + (total - target_value)
@@ -132,56 +157,67 @@ def evaluate_fitness_combo(individual, target_value):
     score = target_value - total
     return score
 
-def crossover_combo(parent1, parent2):
-    """Crossover mantendo a regra do combo"""
-    # Combos vêm de um dos pais
+def crossover_two_combos(parent1, parent2):
+    """Crossover mantendo a regra: JBC + Double = Latas"""
     if random.random() < 0.5:
-        num_combos = parent1.get("JBC (Junior Bacon Cheese)", 0)
+        num_jbc = parent1.get("JBC (Junior Bacon Cheese)", 0)
     else:
-        num_combos = parent2.get("JBC (Junior Bacon Cheese)", 0)
+        num_jbc = parent2.get("JBC (Junior Bacon Cheese)", 0)
     
-    # Cebolas podem ser média ou de um dos pais
+    if random.random() < 0.5:
+        num_double = parent1.get("Double Cheese Burger", 0)
+    else:
+        num_double = parent2.get("Double Cheese Burger", 0)
+    
+    num_latas = num_jbc + num_double  # Mantém a regra
+    
     if random.random() < 0.5:
         num_cebolas = (parent1.get("Cebola Adicional", 0) + parent2.get("Cebola Adicional", 0)) // 2
     else:
         num_cebolas = parent1.get("Cebola Adicional", 0) if random.random() < 0.5 else parent2.get("Cebola Adicional", 0)
     
     return {
-        "JBC (Junior Bacon Cheese)": num_combos,
-        "Refri Lata": num_combos,
+        "JBC (Junior Bacon Cheese)": num_jbc,
+        "Double Cheese Burger": num_double,
+        "Refri Lata": num_latas,
         "Cebola Adicional": num_cebolas
     }
 
-def mutate_combo(individual, mutation_rate=0.3):
-    """Mutação mantendo a regra do combo"""
+def mutate_two_combos(individual, mutation_rate=0.3):
+    """Mutação mantendo a regra: JBC + Double = Latas"""
     new_individual = individual.copy()
     
-    # Mutar número de combos
+    # Mutar JBC
     if random.random() < mutation_rate:
         change = random.choice([-5, -3, -1, 1, 3, 5])
-        new_combos = max(0, new_individual["JBC (Junior Bacon Cheese)"] + change)
-        new_individual["JBC (Junior Bacon Cheese)"] = new_combos
-        new_individual["Refri Lata"] = new_combos  # Mantém igual!
+        new_individual["JBC (Junior Bacon Cheese)"] = max(0, new_individual["JBC (Junior Bacon Cheese)"] + change)
+    
+    # Mutar Double
+    if random.random() < mutation_rate:
+        change = random.choice([-5, -3, -1, 1, 3, 5])
+        new_individual["Double Cheese Burger"] = max(0, new_individual["Double Cheese Burger"] + change)
+    
+    # Recalcular latas para manter a regra
+    new_individual["Refri Lata"] = new_individual["JBC (Junior Bacon Cheese)"] + new_individual["Double Cheese Burger"]
     
     # Mutar cebolas
     if random.random() < mutation_rate:
         change = random.choice([-3, -2, -1, 1, 2, 3])
-        new_cebolas = max(0, new_individual.get("Cebola Adicional", 0) + change)
-        new_individual["Cebola Adicional"] = new_cebolas
+        new_individual["Cebola Adicional"] = max(0, new_individual.get("Cebola Adicional", 0) + change)
     
     return new_individual
 
-def genetic_algorithm_combo(target_value, population_size=50, generations=100, max_combos=100):
-    """Algoritmo genético com restrição de combo"""
+def genetic_algorithm_two_combos(target_value, population_size=50, generations=100, max_combos=100):
+    """Algoritmo genético com 2 combos"""
     if target_value <= 0:
         return {}
     
-    population = [create_individual_combo(CARDAPIOS, max_combos) for _ in range(population_size)]
+    population = [create_individual_two_combos(max_combos) for _ in range(population_size)]
     best_individual = {}
     best_fitness = float('inf')
     
     for generation in range(generations):
-        fitness_scores = [(individual, evaluate_fitness_combo(individual, target_value)) 
+        fitness_scores = [(individual, evaluate_fitness_two_combos(individual, target_value)) 
                          for individual in population]
         fitness_scores.sort(key=lambda x: x[1])
         
@@ -192,11 +228,9 @@ def genetic_algorithm_combo(target_value, population_size=50, generations=100, m
         if best_fitness == 0:
             break
         
-        # Elitismo
         elite_size = max(5, population_size // 10)
         next_generation = [ind[0].copy() for ind in fitness_scores[:elite_size]]
         
-        # Criar nova geração
         while len(next_generation) < population_size:
             tournament_size = 3
             tournament = random.sample(fitness_scores, tournament_size)
@@ -204,19 +238,18 @@ def genetic_algorithm_combo(target_value, population_size=50, generations=100, m
             parent1 = tournament[0][0]
             parent2 = random.choice(fitness_scores[:10])[0]
             
-            child = crossover_combo(parent1, parent2)
-            child = mutate_combo(child)
+            child = crossover_two_combos(parent1, parent2)
+            child = mutate_two_combos(child)
             next_generation.append(child)
         
         population = next_generation
     
-    # Limpar valores zero
     final_combination = {k: int(v) for k, v in best_individual.items() if v > 0}
     
     return final_combination
 
-def buscar_combinacao_combo(target_value, max_time_seconds=5, population_size=100, generations=200):
-    """Busca a melhor combinação respeitando a regra do combo"""
+def buscar_combinacao_two_combos(target_value, max_time_seconds=5, population_size=100, generations=200):
+    """Busca a melhor combinação com 2 combos"""
     start_time = time.time()
     best_global_individual = {}
     best_global_diff = float('inf')
@@ -224,8 +257,8 @@ def buscar_combinacao_combo(target_value, max_time_seconds=5, population_size=10
     
     while (time.time() - start_time) < max_time_seconds:
         attempts += 1
-        current_result = genetic_algorithm_combo(target_value, population_size, generations)
-        current_fitness = evaluate_fitness_combo(current_result, target_value)
+        current_result = genetic_algorithm_two_combos(target_value, population_size, generations)
+        current_fitness = evaluate_fitness_two_combos(current_result, target_value)
         
         if current_fitness == 0:
             return current_result, attempts
@@ -398,9 +431,9 @@ def create_altair_chart(data, chart_type, x_col, y_col, color_col=None, title=No
     return chart.interactive() if interactive else chart
 
 # --- LÓGICA DE PROCESSAMENTO GENÉTICO (SEPARADA) ---
-def gerar_dados_geneticos_combo(valor_alvo_total, pop_size, n_gens):
-    """Gera dados usando o algoritmo genético com restrição de combo"""
-    combinacao, ciclos = buscar_combinacao_combo(
+def gerar_dados_geneticos_two_combos(valor_alvo_total, pop_size, n_gens):
+    """Gera dados usando o algoritmo genético com 2 combos"""
+    combinacao, ciclos = buscar_combinacao_two_combos(
         valor_alvo_total, 
         max_time_seconds=5, 
         population_size=pop_size, 
@@ -436,13 +469,24 @@ def renderizar_resultados(dados):
     st.subheader(f"Valor Alvo: {format_currency(dados['alvo'])}")
     st.caption(f"🤖 O algoritmo realizou {dados['ciclos']} ciclos completos de evolução.")
     
-    # Verificar se a regra do combo foi respeitada
+    # Verificar combos
     qty_jbc = dados['sanduiches'].get("JBC (Junior Bacon Cheese)", 0)
+    qty_double = dados['sanduiches'].get("Double Cheese Burger", 0)
     qty_lata = dados['bebidas'].get("Refri Lata", 0)
     qty_cebola = dados['sanduiches'].get("Cebola Adicional", 0)
     
-    if qty_jbc == qty_lata and qty_jbc > 0:
-        st.success(f"✅ **Combo 1 identificado:** {qty_jbc} unidades (JBC + Refri Lata)")
+    # Mostrar combos identificados
+    if qty_jbc > 0:
+        st.success(f"✅ **Combo 1 identificado:** {qty_jbc} unidades (JBC + Refri Lata) = {format_currency(qty_jbc * COMBO_1_PRECO)}")
+    
+    if qty_double > 0:
+        st.success(f"✅ **Combo 2 identificado:** {qty_double} unidades (Double Cheese + Refri Lata) = {format_currency(qty_double * COMBO_2_PRECO)}")
+    
+    # Validação da regra
+    if qty_jbc + qty_double == qty_lata:
+        st.info(f"✅ **Regra respeitada:** Total de Sanduíches ({qty_jbc + qty_double}) = Total de Latas ({qty_lata})")
+    else:
+        st.warning(f"⚠️ Total de Sanduíches ({qty_jbc + qty_double}) ≠ Total de Latas ({qty_lata})")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -483,31 +527,30 @@ def renderizar_resultados(dados):
 
     diff = dados['alvo'] - dados['val_total']
     
-    # FUNDOS TRANSPARENTES
     cor_border = "#10b981" if diff == 0 else "#f97316"
     cor_text = "#a7f3d0" if diff == 0 else "#fdba74" 
     
     st.markdown("---")
     
-    # Informações do Combo - FUNDO TRANSPARENTE
-    if qty_jbc > 0 and qty_lata > 0:
-        valor_combos = qty_jbc * 25.00
+    # Box de resumo dos combos
+    if qty_jbc > 0 or qty_double > 0:
+        valor_combo1 = qty_jbc * COMBO_1_PRECO
+        valor_combo2 = qty_double * COMBO_2_PRECO
         valor_cebolas = qty_cebola * 0.50
         
         st.markdown(f"""
         <div style="background-color: rgba(65, 105, 225, 0.1); border: 2px solid #4169E1; border-radius: 10px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);">
-            <h4 style="margin:0; color: #87CEEB; text-align: center;">🎁 COMBO 1</h4>
-            <p style="text-align: center; color: #e5e7eb; margin: 5px 0;">
-                {qty_jbc} Combo(s) x R$ 25,00 = <b>{format_currency(valor_combos)}</b>
-            </p>
-            <p style="text-align: center; color: #e5e7eb; margin: 5px 0; font-size: 14px;">
-                (1 JBC + 1 Refri Lata por combo)
-            </p>
+            <h4 style="margin:0; color: #87CEEB; text-align: center;">🎁 RESUMO DOS COMBOS</h4>
+            {f'<p style="text-align: center; color: #e5e7eb; margin: 5px 0;"><b>Combo 1:</b> {qty_jbc} unidade(s) x R$ 25,00 = <b>{format_currency(valor_combo1)}</b></p>' if qty_jbc > 0 else ''}
+            {f'<p style="text-align: center; color: #e5e7eb; margin: 5px 0;"><b>Combo 2:</b> {qty_double} unidade(s) x R$ 30,00 = <b>{format_currency(valor_combo2)}</b></p>' if qty_double > 0 else ''}
             {f'<p style="text-align: center; color: #FFD700; margin: 5px 0; font-size: 14px;">+ {qty_cebola} Cebola(s) Adicional(is) x R$ 0,50 = <b>{format_currency(valor_cebolas)}</b></p>' if qty_cebola > 0 else ''}
+            <p style="text-align: center; color: #90EE90; margin: 10px 0; font-size: 16px; border-top: 1px solid #4169E1; padding-top: 10px;">
+                <b>Total Combos: {format_currency(valor_combo1 + valor_combo2 + valor_cebolas)}</b>
+            </p>
         </div>
         """, unsafe_allow_html=True)
     
-    # Box do valor total - FUNDO TRANSPARENTE
+    # Box do valor total
     st.markdown(f"""
     <div style="background-color: rgba(0, 0, 51, 0.3); border: 3px solid {cor_border}; border-radius: 15px; padding: 25px; text-align: center; margin-top: 10px; margin-bottom: 20px; backdrop-filter: blur(10px);">
         <h3 style="margin:0; color: {cor_text}; font-family: sans-serif;">💰 VALOR TOTAL DA COMBINAÇÃO</h3>
@@ -530,7 +573,6 @@ st.set_page_config(
 # --- CSS GLOBAL ---
 st.markdown("""
 <style>
-    /* 1. FUNDO - Gradiente Azul Escuro */
     .stApp {
         background: linear-gradient(to bottom, #1e005e 0%, #000033 50%, #000000 100%);
         background-size: cover;
@@ -538,7 +580,6 @@ st.markdown("""
         color: #f0f2f6;
     }
 
-    /* 2. Centralização de tabelas */
     th, td {
         text-align: center !important;
         vertical-align: middle !important;
@@ -549,7 +590,6 @@ st.markdown("""
         margin-right: auto;
     }
     
-    /* 3. Inputs */
     .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput, div[data-baseweb="select"] > div {
         background-color: #1a1c24 !important; 
         color: white !important;
@@ -559,7 +599,6 @@ st.markdown("""
         color: white !important;
     }
 
-    /* 4. MENU ESTILIZADO */
     div[role="radiogroup"] {
         display: flex;
         flex-direction: row;
@@ -609,54 +648,27 @@ st.markdown("""
         border-bottom: 2px solid #ff4b4b !important;
         font-weight: bold;
     }
-
-    /* 5. FAÍSCAS */
+    
+    /* LOGO SOBREPONDO TUDO */
     .logo-container {
         position: relative;
-        width: 400px;
-        height: 400px;
-        margin: 0 auto 20px auto;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        z-index: 99999 !important;
+        text-align: center;
+        margin-bottom: 20px;
+        padding: 20px 0;
     }
-
-    .logo-animada {
-        width: 400px;
-        height: auto;
+    
+    .logo-container img {
         position: relative;
-        z-index: 20; 
+        z-index: 99999 !important;
+        filter: drop-shadow(0 0 20px rgba(255, 75, 75, 0.8)) drop-shadow(0 0 40px rgba(255, 75, 75, 0.4));
+        animation: logoFloat 3s ease-in-out infinite;
     }
-
-    .sparkle {
-        position: absolute;
-        width: 8px; 
-        height: 8px;
-        background-color: #FF4500;
-        border-radius: 50%;
-        bottom: 10px;
-        z-index: 1; 
-        opacity: 0;
-        box-shadow: 0 0 5px #FFD700, 0 0 10px #FF8C00;
-        pointer-events: none;
+    
+    @keyframes logoFloat {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
     }
-
-    @keyframes steady-rise-high {
-        0% { opacity: 0; transform: translateY(0) scale(0.5); }
-        10% { opacity: 0.8; }
-        80% { opacity: 0.6; }
-        100% { opacity: 0; transform: translateY(-550px) scale(0.1); }
-    }
-
-    .s1 { bottom: 20px; left: 10%; animation: steady-rise-high 5s linear infinite; animation-delay: 0s; }
-    .s2 { bottom: 10px; left: 20%; animation: steady-rise-high 6s linear infinite; animation-delay: 1.5s; }
-    .s3 { bottom: 25px; left: 35%; animation: steady-rise-high 5.5s linear infinite; animation-delay: 3.0s; }
-    .s4 { bottom: 15px; left: 50%; animation: steady-rise-high 4.5s linear infinite; animation-delay: 0.5s; }
-    .s5 { bottom: 5px;  left: 65%; animation: steady-rise-high 5.2s linear infinite; animation-delay: 2.2s; }
-    .s6 { bottom: 12px; left: 80%; animation: steady-rise-high 4.8s linear infinite; animation-delay: 1.2s; }
-    .s7 { bottom: 18px; left: 90%; animation: steady-rise-high 5.8s linear infinite; animation-delay: 2.8s; }
-    .s8 { bottom: 8px;  left: 30%; animation: steady-rise-high 5.0s linear infinite; animation-delay: 0.8s; }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -673,56 +685,21 @@ if 'resultado_arquivo' not in st.session_state:
 if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
-# --- INTERFACE PRINCIPAL ---
-
-def get_img_as_base64(file_path):
-    try:
-        with open(file_path, "rb") as f:
-            data = f.read()
-        return base64.b64encode(data).decode()
-    except FileNotFoundError:
-        return None
-
-def get_img_from_url(url):
-    try:
-        import urllib.request
-        with urllib.request.urlopen(url) as response:
-            data = response.read()
-        return base64.b64encode(data).decode()
-    except Exception as e:
-        print(f"Erro ao buscar imagem da URL: {e}")
-        return None
-
-# Tentar carregar a logo (local ou remota)
-logo_base64 = None
-
-# Primeiro tenta local
-if os.path.exists(CONFIG["logo_path"]):
-    logo_base64 = get_img_as_base64(CONFIG["logo_path"])
-else:
-    # Se não encontrar local, tenta do GitHub
-    logo_url = "https://raw.githubusercontent.com/lucasricardocs/combo/main/logo.png"
-    logo_base64 = get_img_from_url(logo_url)
+# --- LOGO ---
+logo_base64 = get_logo_base64()
 
 if logo_base64:
     st.markdown(
-        f"""
-        <div class="logo-container">
-            <div class="sparkle s1"></div>
-            <div class="sparkle s2"></div>
-            <div class="sparkle s3"></div>
-            <div class="sparkle s4"></div>
-            <div class="sparkle s5"></div>
-            <div class="sparkle s6"></div>
-            <div class="sparkle s7"></div>
-            <div class="sparkle s8"></div>
-            <img src="image/png;base64,{logo_base64}" class="logo-animada">
-        </div>
-        """,
+        f'<div class="logo-container"><img src="image/png;base64,{logo_base64}" width="350"></div>',
         unsafe_allow_html=True
     )
 else:
-    st.info("🍔 **Clips Burger** - Sistema de Gestão")
+    st.markdown("""
+    <div class='logo-container'>
+        <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
+        <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center; margin-bottom: 20px;'>
@@ -735,7 +712,7 @@ st.markdown("""
 with st.sidebar:
     st.header("⚙️ Configurações do Algoritmo")
     
-    st.info("🧬 Algoritmo Genético com Restrição de Combo")
+    st.info("🧬 Algoritmo Genético com 2 Combos")
     
     population_size = st.slider(
         "Tamanho da População", 
@@ -757,9 +734,12 @@ with st.sidebar:
     
     st.divider()
     
-    st.caption("⚠️ **Regra do Combo 1:**")
-    st.caption("JBC = Refri Lata (sempre iguais)")
-    st.caption("Cebola = ajuste fino (R$ 0,50)")
+    st.caption("⚠️ **Regra Principal:**")
+    st.caption("**Total Sanduíches = Total Latas**")
+    st.caption("")
+    st.caption("🎁 **Combo 1:** JBC + Lata = R$ 25,00")
+    st.caption("🎁 **Combo 2:** Double + Lata = R$ 30,00")
+    st.caption("🧅 **Cebola:** Ajuste fino (R$ 0,50)")
 
 # --- MENU DE NAVEGAÇÃO ---
 menu_opcoes = ["📈 Resumo das Vendas", "🧩 Análise com Arquivo", "💸 Calculadora PIX"]
@@ -932,8 +912,8 @@ elif escolha_menu == "🧩 Análise com Arquivo":
         valor_selecionado = vendas.loc[vendas['Forma'] == forma_selecionada, 'Valor'].iloc[0]
         
         if st.button("🔎 Analisar Combinação", type="primary", use_container_width=True):
-            with st.spinner("Calculando a melhor combinação com Combo 1..."):
-                dados = gerar_dados_geneticos_combo(
+            with st.spinner("Calculando a melhor combinação com 2 Combos..."):
+                dados = gerar_dados_geneticos_two_combos(
                     valor_selecionado, 
                     population_size, 
                     generations
@@ -949,7 +929,7 @@ elif escolha_menu == "🧩 Análise com Arquivo":
 
 elif escolha_menu == "💸 Calculadora PIX":
     st.header("💸 Calculadora Rápida (PIX/Manual)")
-    st.markdown("Digite um valor e descubra quantos Combos 1 + Cebolas formam esse total.")
+    st.markdown("Digite um valor e descubra quantos Combos 1 + Combos 2 + Cebolas formam esse total.")
     
     col_input, col_action = st.columns([0.4, 0.6])
     
@@ -968,7 +948,7 @@ elif escolha_menu == "💸 Calculadora PIX":
         if st.button("🚀 Calcular Combinação", type="primary", use_container_width=True):
             if valor_pix_input > 0:
                 with st.spinner("Calculando a melhor combinação..."):
-                    dados = gerar_dados_geneticos_combo(
+                    dados = gerar_dados_geneticos_two_combos(
                         valor_pix_input, 
                         population_size, 
                         generations
