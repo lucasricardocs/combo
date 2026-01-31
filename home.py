@@ -28,6 +28,7 @@ CONFIG = {
     "logo_url": "https://raw.githubusercontent.com/lucasricardocs/combo/main/logo.png"
 }
 
+# --- CARDÁPIO ATUALIZADO (JBC / DOUBLE) ---
 CARDAPIOS = {
     "sanduiches": {
         "JBC (Junior Bacon Cheese)": 10.00,
@@ -84,14 +85,6 @@ def load_data():
         st.error(f"Erro ao carregar dados: {e}")
         return pd.DataFrame(columns=['Data', 'Dinheiro', 'Cartao', 'Pix'])
 
-def save_data(df):
-    try:
-        df['Data'] = pd.to_datetime(df['Data'])
-        df.to_excel(CONFIG["excel_file"], index=False)
-        st.success("Dados salvos com sucesso!")
-    except Exception as e:
-        st.error(f"Erro ao salvar dados: {e}")
-
 def get_logo_base64():
     """Tenta carregar a logo localmente ou da URL"""
     if os.path.exists(CONFIG["logo_path"]):
@@ -109,12 +102,6 @@ def get_logo_base64():
     except Exception as e:
         st.warning(f"Erro ao carregar logo da URL: {e}")
         return None
-
-def get_img_as_base64(file_path):
-    """Função auxiliar para converter imagem local para base64"""
-    with open(file_path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
 
 # --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS ---
 def create_individual_two_combos(max_combos=100):
@@ -259,7 +246,7 @@ def buscar_combinacao_two_combos(target_value, max_time_seconds=5, population_si
     
     return best_global_individual, attempts
 
-# --- FUNÇÕES PARA GERAR PDF ---
+# --- FUNÇÕES PARA GERAR PDF (MANTIDAS) ---
 def create_watermark(canvas, logo_path, width=400, height=400, opacity=0.1):
     try:
         if os.path.exists(logo_path):
@@ -705,53 +692,32 @@ if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
 # --- LOGO ANIMADA ---
-try:
-    if os.path.exists(CONFIG["logo_path"]):
-        img_base64 = get_img_as_base64(CONFIG["logo_path"])
-        st.markdown(
-            f"""
-            <div class="logo-container">
-                <div class="sparkle s1"></div>
-                <div class="sparkle s2"></div>
-                <div class="sparkle s3"></div>
-                <div class="sparkle s4"></div>
-                <div class="sparkle s5"></div>
-                <div class="sparkle s6"></div>
-                <div class="sparkle s7"></div>
-                <div class="sparkle s8"></div>
-                <img src="image/png;base64,{img_base64}" class="logo-animada">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    else:
-        logo_base64 = get_logo_base64()
-        if logo_base64:
-            st.markdown(
-                f"""
-                <div class="logo-container">
-                    <div class="sparkle s1"></div>
-                    <div class="sparkle s2"></div>
-                    <div class="sparkle s3"></div>
-                    <div class="sparkle s4"></div>
-                    <div class="sparkle s5"></div>
-                    <div class="sparkle s6"></div>
-                    <div class="sparkle s7"></div>
-                    <div class="sparkle s8"></div>
-                    <img src="image/png;base64,{logo_base64}" class="logo-animada">
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown("""
-            <div class='logo-container'>
-                <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
-                <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
-            </div>
-            """, unsafe_allow_html=True)
-except Exception as e:
-    st.error(f"Erro na logo: {e}")
+logo_base64 = get_logo_base64()
+
+if logo_base64:
+    st.markdown(
+        f"""
+        <div class="logo-container">
+            <div class="sparkle s1"></div>
+            <div class="sparkle s2"></div>
+            <div class="sparkle s3"></div>
+            <div class="sparkle s4"></div>
+            <div class="sparkle s5"></div>
+            <div class="sparkle s6"></div>
+            <div class="sparkle s7"></div>
+            <div class="sparkle s8"></div>
+            <img src="image/png;base64,{logo_base64}" class="logo-animada">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown("""
+    <div class='logo-container'>
+        <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
+        <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("""
 <div style='text-align: center; margin-bottom: 20px;'>
