@@ -25,7 +25,8 @@ CONFIG = {
     "sidebar_state": "expanded",
     "excel_file": "recebimentos.xlsx",
     "logo_path": "logo.png",
-    "logo_url": "https://raw.githubusercontent.com/lucasricardocs/combo/main/logo.png"
+    # LINK ATUALIZADO ABAIXO:
+    "logo_url": "https://raw.githubusercontent.com/lucasricardocs/combo/refs/heads/main/logo.png"
 }
 
 CARDAPIOS = {
@@ -97,7 +98,12 @@ def get_logo_base64():
     
     # 2. Tenta URL
     try:
-        with urllib.request.urlopen(CONFIG["logo_url"]) as response:
+        # Define um User-Agent para evitar bloqueios simples
+        req = urllib.request.Request(
+            CONFIG["logo_url"], 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        with urllib.request.urlopen(req) as response:
             data = response.read()
         return base64.b64encode(data).decode()
     except Exception as e:
