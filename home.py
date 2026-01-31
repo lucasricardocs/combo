@@ -93,17 +93,15 @@ def get_logo_base64():
                 data = f.read()
             return base64.b64encode(data).decode()
         except Exception as e:
-            st.warning(f"Erro ao carregar logo local: {e}")
+            pass
     
     try:
-        # Adicionado User-Agent para evitar bloqueios
         headers = {'User-Agent': 'Mozilla/5.0'}
         req = urllib.request.Request(CONFIG["logo_url"], headers=headers)
         with urllib.request.urlopen(req, timeout=5) as response:
             data = response.read()
         return base64.b64encode(data).decode()
     except Exception as e:
-        # Silencioso se falhar na URL também
         return None
 
 # --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS (ORIGINAIS) ---
@@ -259,7 +257,7 @@ def create_watermark(canvas, logo_path, width=400, height=400, opacity=0.1):
                              width=width, height=height, mask='auto', preserveAspectRatio=True)
             canvas.restoreState()
     except Exception as e:
-        print(f"Erro ao adicionar marca d'água: {e}")
+        pass
 
 def fig_to_buffer(fig):
     buf = io.BytesIO()
@@ -273,18 +271,10 @@ def create_pdf_report(df, vendas, total_vendas, imposto_simples, custo_funcionar
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
     
-    # Estilos customizados
-    title_style = styles['Title']
-    title_style.textColor = colors.HexColor("#ff4b4b")
-    
     elements = []
-    
-    # Título
-    elements.append(Paragraph("Relatório de Gestão - Clips Burger", title_style))
+    elements.append(Paragraph("Relatório de Gestão - Clips Burger", styles['Title']))
     elements.append(Spacer(1, 12))
     
-    # Resumo Financeiro
-    elements.append(Paragraph("Resumo Financeiro", styles['Heading2']))
     data_resumo = [
         ["Total Bruto", format_currency(total_vendas)],
         ["Imposto (Simples)", format_currency(imposto_simples)],
@@ -307,54 +297,6 @@ def create_pdf_report(df, vendas, total_vendas, imposto_simples, custo_funcionar
     buffer.seek(0)
     return buffer
 
-# --- FUNÇÃO DE EXIBIÇÃO DE RESULTADO (ORIGINAL COM UI MELHORADA) ---
-def exibir_resultado_combinacao(dados):
-    if not dados: return
-    
-    res = dados['resultado']
-    alvo = dados['alvo']
-    
-    qty_jbc = res.get("JBC (Junior Bacon Cheese)", 0)
-    qty_double = res.get("Double Cheese Burger", 0)
-    qty_lata = res.get("Refri Lata", 0)
-    qty_cebola = res.get("Cebola Adicional", 0)
-    
-    total_calc = (qty_jbc * 10.0) + (qty_double * 15.0) + (qty_lata * 15.0) + (qty_cebola * 0.5)
-    diff = abs(total_calc - alvo)
-    
-    cor_border = "#10b981" if diff == 0 else "#f59e0b"
-    cor_text = "#10b981" if diff == 0 else "#f59e0b"
-    
-    st.markdown(f"""
-    <div style="background-color: rgba(30, 41, 59, 0.7); border: 2px solid {cor_border}; border-radius: 15px; padding: 20px; margin: 10px 0; backdrop-filter: blur(10px);">
-        <h3 style="text-align: center; color: {cor_text}; margin-bottom: 20px;">🎯 Resultado da Otimização</h3>
-        <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
-            <div style="text-align: center; min-width: 120px;">
-                <p style="color: #94a3b8; margin: 0;">JBC</p>
-                <h2 style="margin: 0;">{qty_jbc}</h2>
-            </div>
-            <div style="text-align: center; min-width: 120px;">
-                <p style="color: #94a3b8; margin: 0;">Double</p>
-                <h2 style="margin: 0;">{qty_double}</h2>
-            </div>
-            <div style="text-align: center; min-width: 120px;">
-                <p style="color: #94a3b8; margin: 0;">Latas</p>
-                <h2 style="margin: 0;">{qty_lata}</h2>
-            </div>
-            <div style="text-align: center; min-width: 120px;">
-                <p style="color: #94a3b8; margin: 0;">Cebolas</p>
-                <h2 style="margin: 0;">{qty_cebola}</h2>
-            </div>
-        </div>
-        <hr style="border-color: rgba(255,255,255,0.1);">
-        <div style="text-align: center;">
-            <p style="color: #94a3b8; margin: 0;">Total Calculado</p>
-            <h1 style="color: {cor_text}; margin: 5px 0;">{format_currency(total_calc)}</h1>
-            <p style="font-size: 0.9rem; color: #64748b;">Meta: {format_currency(alvo)} | Diferença: {format_currency(diff)}</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title=CONFIG["page_title"],
@@ -362,87 +304,70 @@ st.set_page_config(
     initial_sidebar_state=CONFIG["sidebar_state"]
 )
 
-# --- CSS GLOBAL (MELHORADO) ---
+# --- CSS GLOBAL (ORIGINAL COM CORREÇÕES) ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-    
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #f8fafc;
-        font-family: 'Inter', sans-serif;
+        background: linear-gradient(to bottom, #1e005e 0%, #000033 50%, #000000 100%);
+        background-size: cover;
+        background-attachment: fixed;
+        color: #f0f2f6;
     }
 
-    /* Logo Animada */
+    th, td {
+        text-align: center !important;
+        vertical-align: middle !important;
+        color: #e0e0e0 !important;
+    }
+    
+    .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput, div[data-baseweb="select"] > div {
+        background-color: #1a1c24 !important; 
+        color: white !important;
+        border: 1px solid #444 !important;
+    }
+
+    /* LOGO ANIMADA */
     .logo-container {
         position: relative;
-        width: 220px;
-        height: 220px;
-        margin: 0 auto 10px auto;
+        width: 300px;
+        height: 300px;
+        margin: 0 auto 20px auto;
         display: flex;
         justify-content: center;
         align-items: center;
-        z-index: 10;
     }
 
     .logo-animada {
-        width: 180px;
+        width: 250px;
         height: auto;
-        z-index: 20;
-        filter: drop-shadow(0 0 15px rgba(255, 75, 75, 0.3));
-        transition: transform 0.3s ease;
-    }
-    
-    .logo-animada:hover {
-        transform: scale(1.05);
+        position: relative;
+        z-index: 20; 
     }
 
     .sparkle {
         position: absolute;
-        width: 6px; 
-        height: 6px;
-        background-color: #ff4b4b;
+        width: 8px; 
+        height: 8px;
+        background-color: #FF4500;
         border-radius: 50%;
-        bottom: 20px;
+        bottom: 10px;
         z-index: 1;
         opacity: 0;
-        box-shadow: 0 0 8px #ff4b4b;
+        box-shadow: 0 0 5px #FFD700, 0 0 10px #FF8C00;
     }
 
-    @keyframes rise {
+    @keyframes steady-rise-high {
         0% { opacity: 0; transform: translateY(0) scale(0.5); }
-        20% { opacity: 0.8; }
-        80% { opacity: 0.4; }
-        100% { opacity: 0; transform: translateY(-180px) scale(0.2); }
+        10% { opacity: 0.8; }
+        80% { opacity: 0.6; }
+        100% { opacity: 0; transform: translateY(-400px) scale(0.1); }
     }
 
-    .s1 { left: 20%; animation: rise 3s infinite; animation-delay: 0s; }
-    .s2 { left: 40%; animation: rise 4s infinite; animation-delay: 1s; }
-    .s3 { left: 60%; animation: rise 3.5s infinite; animation-delay: 0.5s; }
-    .s4 { left: 80%; animation: rise 4.5s infinite; animation-delay: 1.5s; }
-
-    /* Estilização Geral */
-    .stButton>button {
-        border-radius: 10px;
-        background: #ff4b4b;
-        color: white;
-        border: none;
-        font-weight: 600;
-        width: 100%;
-    }
-    
-    .stTextInput>div>div>input, .stNumberInput>div>div>input {
-        background-color: #1e293b !important;
-        color: white !important;
-        border: 1px solid #334155 !important;
-    }
-
-    div[role="radiogroup"] {
-        background: #1e293b;
-        padding: 10px;
-        border-radius: 12px;
-        border: 1px solid #334155;
-    }
+    .s1 { bottom: 20px; left: 10%; animation: steady-rise-high 5s linear infinite; }
+    .s2 { bottom: 10px; left: 30%; animation: steady-rise-high 6s linear infinite; animation-delay: 1.5s; }
+    .s3 { bottom: 25px; left: 50%; animation: steady-rise-high 5.5s linear infinite; animation-delay: 3.0s; }
+    .s4 { bottom: 15px; left: 70%; animation: steady-rise-high 4.5s linear infinite; animation-delay: 0.5s; }
+    .s5 { bottom: 5px;  left: 90%; animation: steady-rise-high 5.2s linear infinite; animation-delay: 2.2s; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -459,90 +384,72 @@ if 'resultado_arquivo' not in st.session_state:
 if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
-# --- EXIBIÇÃO DA LOGO ---
+# --- LOGO ANIMADA ---
 logo_base64 = get_logo_base64()
 
-st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-st.markdown('<div class="sparkle s1"></div><div class="sparkle s2"></div><div class="sparkle s3"></div><div class="sparkle s4"></div>', unsafe_allow_html=True)
 if logo_base64:
-    # CORREÇÃO: Adicionado data:image/png;base64,
-    st.markdown(f'<img src="data:image/png;base64,{logo_base64}" class="logo-animada">', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="logo-container">
+            <div class="sparkle s1"></div>
+            <div class="sparkle s2"></div>
+            <div class="sparkle s3"></div>
+            <div class="sparkle s4"></div>
+            <div class="sparkle s5"></div>
+            <img src="data:image/png;base64,{logo_base64}" class="logo-animada">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 else:
-    st.markdown("<h1 style='font-size: 80px; margin: 0;'>🍔</h1>", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class='logo-container'>
+        <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.markdown("""
-<div style='text-align: center; margin-bottom: 30px;'>
-    <h1 style='color: #ff4b4b; margin: 0; font-weight: 800;'>CLIPS BURGER</h1>
-    <p style='color: #94a3b8; font-size: 1.1rem;'>Sistema de Gestão Inteligente</p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: #ff4b4b;'>🍔 Clips Burger - Gestão</h2>", unsafe_allow_html=True)
 
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Configurações")
-    st.info("🧬 Algoritmo Genético")
-    
     population_size = st.slider("População", 20, 200, 100)
     generations = st.slider("Gerações", 10, 500, 200)
-    
-    st.divider()
-    st.caption("🎁 **Combo 1:** JBC + Lata = R$ 25,00")
-    st.caption("🎁 **Combo 2:** Double + Lata = R$ 30,00")
 
-# --- MENU DE NAVEGAÇÃO ---
+# --- MENU ---
 menu_opcoes = ["📈 Resumo das Vendas", "🧩 Análise com Arquivo", "💸 Calculadora PIX"]
-escolha_menu = st.radio("Navegação", menu_opcoes, horizontal=True, label_visibility="collapsed", key="nav_menu")
+escolha_menu = st.radio("Navegação", menu_opcoes, horizontal=True, label_visibility="collapsed")
 
-# --- CONTEÚDO DAS ABAS ---
-
+# --- CONTEÚDO ---
 if escolha_menu == "📈 Resumo das Vendas":
-    st.subheader("📊 Visão Geral")
-    # Simulação de dashboard para UI
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Vendas Totais", "R$ 4.250,00", "+5%")
-    c2.metric("Ticket Médio", "R$ 42,50", "Estável")
-    c3.metric("Pedidos", "102", "+12")
-    
-    st.markdown("---")
     st.subheader("📤 Upload de Dados")
-    arquivo = st.file_uploader("Envie o arquivo de transações (.csv ou .xlsx)", type=["csv", "xlsx"])
-    
+    arquivo = st.file_uploader("Envie o arquivo (.csv ou .xlsx)", type=["csv", "xlsx"])
     if arquivo:
-        st.success("Arquivo carregado com sucesso!")
-        # Lógica original de processamento de arquivo seria mantida aqui...
+        st.success("Arquivo carregado!")
 
 elif escolha_menu == "🧩 Análise com Arquivo":
-    st.subheader("🧩 Otimizador de Combinações")
-    target_val = st.number_input("Valor Alvo para Otimização (R$)", min_value=0.0, value=100.0, step=10.0)
-    
-    if st.button("🚀 Iniciar Algoritmo Genético"):
-        with st.spinner("O DNA dos hambúrgueres está sendo analisado..."):
-            res, attempts = buscar_combinacao_two_combos(target_val, population_size=population_size, generations=generations)
+    st.subheader("🧩 Otimizador")
+    target_val = st.number_input("Valor Alvo (R$)", min_value=0.0, value=100.0)
+    if st.button("🚀 Otimizar"):
+        with st.spinner("Calculando..."):
+            res, _ = buscar_combinacao_two_combos(target_val, population_size, generations)
             st.session_state.resultado_arquivo = {'resultado': res, 'alvo': target_val}
-            
+    
     if st.session_state.resultado_arquivo:
-        exibir_resultado_combinacao(st.session_state.resultado_arquivo)
+        res = st.session_state.resultado_arquivo['resultado']
+        st.write("### Resultado:")
+        for k, v in res.items():
+            st.write(f"**{v}x** {k}")
 
 elif escolha_menu == "💸 Calculadora PIX":
     st.subheader("💸 Conciliação PIX")
-    pix_input = st.text_area("Insira os valores PIX (um por linha)", height=150)
-    if st.button("Calcular Total"):
+    pix_input = st.text_area("Valores (um por linha)")
+    if st.button("Calcular"):
         try:
             vals = [float(x.strip().replace(',', '.')) for x in pix_input.split('\n') if x.strip()]
-            total = sum(vals)
-            st.success(f"Total Conciliado: {format_currency(total)}")
-            
-            if st.button("🧬 Otimizar para este valor"):
-                with st.spinner("Calculando..."):
-                    res, _ = buscar_combinacao_two_combos(total)
-                    st.session_state.resultado_pix = {'resultado': res, 'alvo': total}
+            st.metric("Total", format_currency(sum(vals)))
         except:
-            st.error("Erro ao processar valores. Verifique o formato.")
-            
-    if st.session_state.resultado_pix:
-        exibir_resultado_combinacao(st.session_state.resultado_pix)
+            st.error("Erro nos valores.")
 
-# --- FOOTER ---
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: #64748b; font-size: 0.8rem;'>© 2026 Clips Burger - Gestão de Alta Performance</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #64748b;'>© 2026 Clips Burger</p>", unsafe_allow_html=True)
