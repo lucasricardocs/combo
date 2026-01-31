@@ -29,6 +29,7 @@ CONFIG = {
 CARDAPIOS = {
     "sanduiches": {
         "JBC (Junior Bacon Cheese)": 10.00,
+        "Double Cheese Burger": 15.00,
         "Cebola Adicional": 0.50
     },
     "bebidas": {
@@ -682,10 +683,26 @@ def get_img_as_base64(file_path):
     except FileNotFoundError:
         return None
 
-# Tentar carregar a logo
+def get_img_from_url(url):
+    try:
+        import urllib.request
+        with urllib.request.urlopen(url) as response:
+            data = response.read()
+        return base64.b64encode(data).decode()
+    except Exception as e:
+        print(f"Erro ao buscar imagem da URL: {e}")
+        return None
+
+# Tentar carregar a logo (local ou remota)
 logo_base64 = None
+
+# Primeiro tenta local
 if os.path.exists(CONFIG["logo_path"]):
     logo_base64 = get_img_as_base64(CONFIG["logo_path"])
+else:
+    # Se não encontrar local, tenta do GitHub
+    logo_url = "https://raw.githubusercontent.com/lucasricardocs/combo/main/logo.png"
+    logo_base64 = get_img_from_url(logo_url)
 
 if logo_base64:
     st.markdown(
@@ -705,7 +722,7 @@ if logo_base64:
         unsafe_allow_html=True
     )
 else:
-    st.warning("⚠️ Logo não encontrada. Certifique-se de que o arquivo 'logo.png' está na mesma pasta do script.")
+    st.info("🍔 **Clips Burger** - Sistema de Gestão")
 
 st.markdown("""
 <div style='text-align: center; margin-bottom: 20px;'>
@@ -716,29 +733,33 @@ st.markdown("""
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Configurações")
+    st.header("⚙️ Configurações do Algoritmo")
     
-    st.subheader("📋 Cardápio Combo 1")
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric("🍔 JBC", "R$ 10,00")
-        st.metric("🧅 Cebola", "R$ 0,50")
-    with col_b:
-        st.metric("🥤 Lata", "R$ 15,00")
-        st.metric("🎁 Combo", "R$ 25,00")
-    
-    st.divider()
-    st.info("🧬 Algoritmo Genético Ativo")
+    st.info("🧬 Algoritmo Genético com Restrição de Combo")
     
     population_size = st.slider(
-        "Tamanho da População", 20, 200, 100, 10
-    )
-    generations = st.slider(
-        "Número de Gerações", 10, 500, 200, 10
+        "Tamanho da População", 
+        min_value=20, 
+        max_value=200, 
+        value=100, 
+        step=10,
+        help="Maior população = melhor resultado, mas mais lento"
     )
     
-    st.caption("⚠️ O algoritmo garante que JBC = Refri Lata")
+    generations = st.slider(
+        "Número de Gerações", 
+        min_value=10, 
+        max_value=500, 
+        value=200, 
+        step=10,
+        help="Mais gerações = melhor convergência"
+    )
+    
+    st.divider()
+    
+    st.caption("⚠️ **Regra do Combo 1:**")
+    st.caption("JBC = Refri Lata (sempre iguais)")
+    st.caption("Cebola = ajuste fino (R$ 0,50)")
 
 # --- MENU DE NAVEGAÇÃO ---
 menu_opcoes = ["📈 Resumo das Vendas", "🧩 Análise com Arquivo", "💸 Calculadora PIX"]
