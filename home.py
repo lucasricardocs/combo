@@ -482,19 +482,19 @@ def renderizar_resultados(dados):
 
     diff = dados['alvo'] - dados['val_total']
     
-    cor_box = "#000033" if diff == 0 else "#330000" 
+    # FUNDOS TRANSPARENTES
     cor_border = "#10b981" if diff == 0 else "#f97316"
     cor_text = "#a7f3d0" if diff == 0 else "#fdba74" 
     
     st.markdown("---")
     
-    # Informações do Combo
+    # Informações do Combo - FUNDO TRANSPARENTE
     if qty_jbc > 0 and qty_lata > 0:
-        valor_combos = qty_jbc * 25.00  # Combo = R$ 25
+        valor_combos = qty_jbc * 25.00
         valor_cebolas = qty_cebola * 0.50
         
         st.markdown(f"""
-        <div style="background-color: #001a4d; border: 2px solid #4169E1; border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+        <div style="background-color: rgba(65, 105, 225, 0.1); border: 2px solid #4169E1; border-radius: 10px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);">
             <h4 style="margin:0; color: #87CEEB; text-align: center;">🎁 COMBO 1</h4>
             <p style="text-align: center; color: #e5e7eb; margin: 5px 0;">
                 {qty_jbc} Combo(s) x R$ 25,00 = <b>{format_currency(valor_combos)}</b>
@@ -506,8 +506,9 @@ def renderizar_resultados(dados):
         </div>
         """, unsafe_allow_html=True)
     
+    # Box do valor total - FUNDO TRANSPARENTE
     st.markdown(f"""
-    <div style="background-color: {cor_box}; border: 2px solid {cor_border}; border-radius: 10px; padding: 20px; text-align: center; margin-top: 10px; margin-bottom: 20px;">
+    <div style="background-color: rgba(0, 0, 51, 0.3); border: 3px solid {cor_border}; border-radius: 15px; padding: 25px; text-align: center; margin-top: 10px; margin-bottom: 20px; backdrop-filter: blur(10px);">
         <h3 style="margin:0; color: {cor_text}; font-family: sans-serif;">💰 VALOR TOTAL DA COMBINAÇÃO</h3>
         <p style="font-size: 45px; font-weight: 800; margin: 10px 0; color: {cor_text};">
             {format_currency(dados['val_total'])}
@@ -674,55 +675,61 @@ if 'resultado_pix' not in st.session_state:
 # --- INTERFACE PRINCIPAL ---
 
 def get_img_as_base64(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+    try:
+        with open(file_path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except FileNotFoundError:
+        return None
 
-try:
-    if os.path.exists(CONFIG["logo_path"]):
-        img_base64 = get_img_as_base64(CONFIG["logo_path"])
-        st.markdown(
-            f"""
-            <div class="logo-container">
-                <div class="sparkle s1"></div>
-                <div class="sparkle s2"></div>
-                <div class="sparkle s3"></div>
-                <div class="sparkle s4"></div>
-                <div class="sparkle s5"></div>
-                <div class="sparkle s6"></div>
-                <div class="sparkle s7"></div>
-                <div class="sparkle s8"></div>
-                <img src="image/png;base64,{img_base64}" class="logo-animada">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-except Exception as e:
-    st.error(f"Erro na logo: {e}")
+# Tentar carregar a logo
+logo_base64 = None
+if os.path.exists(CONFIG["logo_path"]):
+    logo_base64 = get_img_as_base64(CONFIG["logo_path"])
+
+if logo_base64:
+    st.markdown(
+        f"""
+        <div class="logo-container">
+            <div class="sparkle s1"></div>
+            <div class="sparkle s2"></div>
+            <div class="sparkle s3"></div>
+            <div class="sparkle s4"></div>
+            <div class="sparkle s5"></div>
+            <div class="sparkle s6"></div>
+            <div class="sparkle s7"></div>
+            <div class="sparkle s8"></div>
+            <img src="image/png;base64,{logo_base64}" class="logo-animada">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.warning("⚠️ Logo não encontrada. Certifique-se de que o arquivo 'logo.png' está na mesma pasta do script.")
 
 st.markdown("""
-**🎁 Sistema de Combos Clips Burger**
-
-**Combo 1:** JBC (R$ 10,00) + Refri Lata (R$ 15,00) = **R$ 25,00**  
-**Adicional:** Cebola (R$ 0,50) para ajuste fino
-""")
+<div style='text-align: center; margin-bottom: 20px;'>
+    <h2 style='color: #ff4b4b; margin: 0;'>🍔 Sistema de Gestão - Clips Burger</h2>
+    <p style='color: #b0b0b0; margin-top: 5px;'>Análise inteligente de vendas e combinações</p>
+</div>
+""", unsafe_allow_html=True)
 
 # --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Configurações")
     
-    st.subheader("📋 Cardápio")
-    st.markdown("""
-    **Combo 1:**
-    - 🍔 JBC: R$ 10,00
-    - 🥤 Refri Lata: R$ 15,00
-    - 🧅 Cebola Adicional: R$ 0,50
+    st.subheader("📋 Cardápio Combo 1")
     
-    **Total do Combo:** R$ 25,00
-    """)
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.metric("🍔 JBC", "R$ 10,00")
+        st.metric("🧅 Cebola", "R$ 0,50")
+    with col_b:
+        st.metric("🥤 Lata", "R$ 15,00")
+        st.metric("🎁 Combo", "R$ 25,00")
     
     st.divider()
-    st.info("🧬 Algoritmo Genético com Restrição de Combo")
+    st.info("🧬 Algoritmo Genético Ativo")
     
     population_size = st.slider(
         "Tamanho da População", 20, 200, 100, 10
