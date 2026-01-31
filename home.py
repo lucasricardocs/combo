@@ -61,9 +61,34 @@ def format_currency(value):
 
 def get_global_centered_styles():
     return [
-        {'selector': 'th', 'props': [('text-align', 'center'), ('vertical-align', 'middle'), ('background-color', '#000033'), ('color', '#ffffff'), ('padding', '8px'), ('border', '1px solid #444')]},
-        {'selector': 'td', 'props': [('text-align', 'center'), ('vertical-align', 'middle'), ('padding', '8px'), ('color', '#e0e0e0'), ('background-color', '#1a1a4a')]},
-        {'selector': 'table', 'props': [('width', '100%'), ('margin-left', 'auto'), ('margin-right', 'auto')]}
+        {'selector': 'th', 'props': [
+            ('text-align', 'center'), 
+            ('vertical-align', 'middle'), 
+            ('background-color', '#1e3a8a'), 
+            ('color', '#ffffff'), 
+            ('padding', '12px'), 
+            ('border', '1px solid #60a5fa'),
+            ('font-weight', 'bold'),
+            ('font-size', '14px')
+        ]},
+        {'selector': 'td', 'props': [
+            ('text-align', 'center'), 
+            ('vertical-align', 'middle'), 
+            ('padding', '10px'), 
+            ('color', '#f3f4f6'), 
+            ('background-color', '#1e293b'),
+            ('border', '1px solid #475569'),
+            ('font-size', '13px')
+        ]},
+        {'selector': 'tr:hover td', 'props': [
+            ('background-color', '#334155'),
+        ]},
+        {'selector': 'table', 'props': [
+            ('width', '100%'), 
+            ('margin-left', 'auto'), 
+            ('margin-right', 'auto'),
+            ('border-collapse', 'collapse')
+        ]}
     ]
 
 def init_data_file():
@@ -83,11 +108,15 @@ def load_data():
         st.error(f"Erro ao carregar dados: {e}")
         return pd.DataFrame(columns=['Data', 'Dinheiro', 'Cartao', 'Pix'])
 
-# --- FUNÇÃO DA LOGO QUE FUNCIONA NO SEU AMBIENTE ---
+# --- FUNÇÃO DA LOGO CORRIGIDA ---
 def get_img_as_base64(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+    try:
+        with open(file_path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except Exception as e:
+        print(f"Erro ao carregar imagem: {e}")
+        return None
 
 # --- FUNÇÕES PARA ALGORITMO GENÉTICO COM 2 COMBOS (LÓGICA NOVA) ---
 def create_individual_two_combos(max_combos=100):
@@ -426,8 +455,18 @@ def gerar_dados_geneticos_two_combos(valor_alvo_total, pop_size, n_gens):
     }
 
 def renderizar_resultados(dados):
-    st.subheader(f"Valor Alvo: {format_currency(dados['alvo'])}")
-    st.caption(f"🤖 O algoritmo realizou {dados['ciclos']} ciclos completos de evolução.")
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); 
+                border-radius: 15px; padding: 20px; margin-bottom: 20px; 
+                border: 2px solid #60a5fa; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <h2 style="color: #ffffff; margin: 0; text-align: center;">
+            🎯 Valor Alvo: {format_currency(dados['alvo'])}
+        </h2>
+        <p style="color: #e0e7ff; text-align: center; margin: 10px 0 0 0; font-size: 14px;">
+            🤖 Algoritmo realizou {dados['ciclos']} ciclos de evolução
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     qty_jbc = dados['sanduiches'].get("JBC (Junior Bacon Cheese)", 0)
     qty_double = dados['sanduiches'].get("Double Cheese Burger", 0)
@@ -435,19 +474,53 @@ def renderizar_resultados(dados):
     qty_cebola = dados['sanduiches'].get("Cebola Adicional", 0)
     
     if qty_jbc > 0:
-        st.success(f"✅ **Combo 1 identificado:** {qty_jbc} unidades (JBC + Refri Lata) = {format_currency(qty_jbc * COMBO_1_PRECO)}")
+        st.markdown(f"""
+        <div style="background-color: #065f46; border-left: 4px solid #10b981; 
+                    padding: 15px; margin: 10px 0; border-radius: 8px;">
+            <p style="color: #d1fae5; margin: 0; font-size: 16px; font-weight: bold;">
+                ✅ Combo 1: {qty_jbc} unidades (JBC + Refri Lata) = {format_currency(qty_jbc * COMBO_1_PRECO)}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     if qty_double > 0:
-        st.success(f"✅ **Combo 2 identificado:** {qty_double} unidades (Double Cheese + Refri Lata) = {format_currency(qty_double * COMBO_2_PRECO)}")
+        st.markdown(f"""
+        <div style="background-color: #065f46; border-left: 4px solid #10b981; 
+                    padding: 15px; margin: 10px 0; border-radius: 8px;">
+            <p style="color: #d1fae5; margin: 0; font-size: 16px; font-weight: bold;">
+                ✅ Combo 2: {qty_double} unidades (Double Cheese + Refri Lata) = {format_currency(qty_double * COMBO_2_PRECO)}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     if qty_jbc + qty_double == qty_lata:
-        st.info(f"✅ **Regra respeitada:** Total de Sanduíches ({qty_jbc + qty_double}) = Total de Latas ({qty_lata})")
+        st.markdown(f"""
+        <div style="background-color: #1e40af; border-left: 4px solid #60a5fa; 
+                    padding: 15px; margin: 10px 0; border-radius: 8px;">
+            <p style="color: #dbeafe; margin: 0; font-size: 15px;">
+                ✅ Regra respeitada: Total de Sanduíches ({qty_jbc + qty_double}) = Total de Latas ({qty_lata})
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.warning(f"⚠️ Total de Sanduíches ({qty_jbc + qty_double}) ≠ Total de Latas ({qty_lata})")
+        st.markdown(f"""
+        <div style="background-color: #92400e; border-left: 4px solid #f59e0b; 
+                    padding: 15px; margin: 10px 0; border-radius: 8px;">
+            <p style="color: #fef3c7; margin: 0; font-size: 15px;">
+                ⚠️ Total de Sanduíches ({qty_jbc + qty_double}) ≠ Total de Latas ({qty_lata})
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### 🍔 Produtos")
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); 
+                    border-radius: 12px; padding: 20px; border: 2px solid #475569;">
+            <h3 style="color: #fbbf24; margin: 0 0 15px 0; text-align: center;">🍔 Produtos</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
         if dados['sanduiches']:
             df_s = pd.DataFrame({
                 'Produto': list(dados['sanduiches'].keys()),
@@ -460,12 +533,24 @@ def renderizar_resultados(dados):
                 .set_table_styles(get_global_centered_styles()).hide(axis='index').to_html()
             st.markdown(html_s, unsafe_allow_html=True)
             st.write("")
-            st.metric("Total Produtos", format_currency(dados['val_sand']))
+            st.markdown(f"""
+            <div style="background-color: #1e40af; padding: 15px; border-radius: 8px; text-align: center; margin-top: 10px;">
+                <p style="color: #ffffff; font-size: 18px; font-weight: bold; margin: 0;">
+                    Total: {format_currency(dados['val_sand'])}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.warning("Sem itens")
 
     with col2:
-        st.markdown("### 🥤 Bebidas")
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); 
+                    border-radius: 12px; padding: 20px; border: 2px solid #475569;">
+            <h3 style="color: #60a5fa; margin: 0 0 15px 0; text-align: center;">🥤 Bebidas</h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
         if dados['bebidas']:
             df_b = pd.DataFrame({
                 'Produto': list(dados['bebidas'].keys()),
@@ -478,14 +563,21 @@ def renderizar_resultados(dados):
                 .set_table_styles(get_global_centered_styles()).hide(axis='index').to_html()
             st.markdown(html_b, unsafe_allow_html=True)
             st.write("")
-            st.metric("Total Bebidas", format_currency(dados['val_beb']))
+            st.markdown(f"""
+            <div style="background-color: #1e40af; padding: 15px; border-radius: 8px; text-align: center; margin-top: 10px;">
+                <p style="color: #ffffff; font-size: 18px; font-weight: bold; margin: 0;">
+                    Total: {format_currency(dados['val_beb'])}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.warning("Sem itens")
 
     diff = dados['alvo'] - dados['val_total']
     
     cor_border = "#10b981" if diff == 0 else "#f97316"
-    cor_text = "#a7f3d0" if diff == 0 else "#fdba74" 
+    cor_bg = "#065f46" if diff == 0 else "#92400e"
+    cor_text = "#d1fae5" if diff == 0 else "#fef3c7" 
     
     st.markdown("---")
     
@@ -495,25 +587,32 @@ def renderizar_resultados(dados):
         valor_cebolas = qty_cebola * 0.50
         
         st.markdown(f"""
-        <div style="background-color: rgba(65, 105, 225, 0.1); border: 2px solid #4169E1; border-radius: 10px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);">
-            <h4 style="margin:0; color: #87CEEB; text-align: center;">🎁 RESUMO DOS COMBOS</h4>
-            {f'<p style="text-align: center; color: #e5e7eb; margin: 5px 0;"><b>Combo 1:</b> {qty_jbc} unidade(s) x R$ 25,00 = <b>{format_currency(valor_combo1)}</b></p>' if qty_jbc > 0 else ''}
-            {f'<p style="text-align: center; color: #e5e7eb; margin: 5px 0;"><b>Combo 2:</b> {qty_double} unidade(s) x R$ 30,00 = <b>{format_currency(valor_combo2)}</b></p>' if qty_double > 0 else ''}
-            {f'<p style="text-align: center; color: #FFD700; margin: 5px 0; font-size: 14px;">+ {qty_cebola} Cebola(s) Adicional(is) x R$ 0,50 = <b>{format_currency(valor_cebolas)}</b></p>' if qty_cebola > 0 else ''}
-            <p style="text-align: center; color: #90EE90; margin: 10px 0; font-size: 16px; border-top: 1px solid #4169E1; padding-top: 10px;">
-                <b>Total Combos: {format_currency(valor_combo1 + valor_combo2 + valor_cebolas)}</b>
+        <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                    border: 3px solid #60a5fa; border-radius: 15px; 
+                    padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="margin:0 0 15px 0; color: #ffffff; text-align: center; font-size: 20px;">🎁 RESUMO DOS COMBOS</h4>
+            {f'<p style="text-align: center; color: #dbeafe; margin: 8px 0; font-size: 16px;"><b>Combo 1:</b> {qty_jbc} unidade(s) × R$ 25,00 = <b>{format_currency(valor_combo1)}</b></p>' if qty_jbc > 0 else ''}
+            {f'<p style="text-align: center; color: #dbeafe; margin: 8px 0; font-size: 16px;"><b>Combo 2:</b> {qty_double} unidade(s) × R$ 30,00 = <b>{format_currency(valor_combo2)}</b></p>' if qty_double > 0 else ''}
+            {f'<p style="text-align: center; color: #fef3c7; margin: 8px 0; font-size: 15px;">+ {qty_cebola} Cebola(s) Adicional(is) × R$ 0,50 = <b>{format_currency(valor_cebolas)}</b></p>' if qty_cebola > 0 else ''}
+            <p style="text-align: center; color: #10b981; margin: 15px 0 0 0; font-size: 18px; 
+                      border-top: 2px solid #60a5fa; padding-top: 15px; font-weight: bold;">
+                Total Combos: {format_currency(valor_combo1 + valor_combo2 + valor_cebolas)}
             </p>
         </div>
         """, unsafe_allow_html=True)
     
     st.markdown(f"""
-    <div style="background-color: rgba(0, 0, 51, 0.3); border: 3px solid {cor_border}; border-radius: 15px; padding: 25px; text-align: center; margin-top: 10px; margin-bottom: 20px; backdrop-filter: blur(10px);">
-        <h3 style="margin:0; color: {cor_text}; font-family: sans-serif;">💰 VALOR TOTAL DA COMBINAÇÃO</h3>
-        <p style="font-size: 45px; font-weight: 800; margin: 10px 0; color: {cor_text};">
+    <div style="background: linear-gradient(135deg, {cor_bg} 0%, {cor_border} 100%); 
+                border: 4px solid {cor_border}; border-radius: 20px; 
+                padding: 30px; text-align: center; margin-top: 10px; 
+                margin-bottom: 20px; box-shadow: 0 6px 12px rgba(0,0,0,0.4);">
+        <h3 style="margin:0; color: #ffffff; font-family: sans-serif; font-size: 22px;">💰 VALOR TOTAL DA COMBINAÇÃO</h3>
+        <p style="font-size: 48px; font-weight: 900; margin: 15px 0; color: #ffffff; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
             {format_currency(dados['val_total'])}
         </p>
-        <p style="font-size: 16px; margin: 0; color: #e5e7eb;">
-            Meta: <b>{format_currency(dados['alvo'])}</b> | Diferença: <b style="color: {'#fca5a5' if diff != 0 else '#86efac'}">{format_currency(abs(diff))}</b>
+        <p style="font-size: 16px; margin: 0; color: #f3f4f6;">
+            Meta: <b style="color: #ffffff;">{format_currency(dados['alvo'])}</b> | 
+            Diferença: <b style="color: {'#fca5a5' if diff != 0 else '#86efac'}">{format_currency(abs(diff))}</b>
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -525,35 +624,51 @@ st.set_page_config(
     initial_sidebar_state=CONFIG["sidebar_state"]
 )
 
-# --- CSS GLOBAL COM LOGO ANIMADA (IGUAL AO SEU QUE FUNCIONA) ---
+# --- CSS GLOBAL MELHORADO ---
 st.markdown("""
 <style>
+    /* Background principal */
     .stApp {
-        background: linear-gradient(to bottom, #1e005e 0%, #000033 50%, #000000 100%);
+        background: linear-gradient(to bottom, #0f172a 0%, #1e293b 50%, #0f172a 100%);
         background-size: cover;
         background-attachment: fixed;
         color: #f0f2f6;
     }
 
+    /* Tabelas com melhor contraste */
     th, td {
         text-align: center !important;
         vertical-align: middle !important;
-        color: #e0e0e0 !important;
     }
+    
     div[data-testid="stTable"] table {
         margin-left: auto;
         margin-right: auto;
     }
     
-    .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput, div[data-baseweb="select"] > div {
-        background-color: #1a1c24 !important; 
-        color: white !important;
-        border: 1px solid #444 !important;
+    /* Inputs com melhor visibilidade */
+    .stTextInput input, .stNumberInput input, .stSelectbox, .stDateInput, 
+    div[data-baseweb="select"] > div {
+        background-color: #1e293b !important; 
+        color: #f3f4f6 !important;
+        border: 2px solid #475569 !important;
+        font-size: 14px !important;
     }
+    
     .stSelectbox div[data-baseweb="select"] span {
-        color: white !important;
+        color: #f3f4f6 !important;
     }
 
+    /* Sliders */
+    .stSlider [data-baseweb="slider"] {
+        background-color: #1e293b;
+    }
+    
+    .stSlider [data-baseweb="slider"] [role="slider"] {
+        background-color: #3b82f6 !important;
+    }
+
+    /* Radio buttons - Menu de navegação */
     div[role="radiogroup"] {
         display: flex;
         flex-direction: row;
@@ -571,7 +686,7 @@ st.markdown("""
         box-shadow: none !important;
         cursor: pointer;
         transition: all 0.3s ease;
-        border-right: 2px solid #555 !important;
+        border-right: 2px solid #475569 !important;
         border-radius: 0 !important;
     }
 
@@ -589,19 +704,79 @@ st.markdown("""
         font-weight: 500;
         margin: 0;
         padding-bottom: 2px;
-        color: #b0b0b0; 
+        color: #94a3b8; 
         border-bottom: 2px solid transparent; 
     }
 
     div[role="radiogroup"] label:hover div[data-testid="stMarkdownContainer"] p {
-        color: #ff4b4b !important;
-        border-bottom: 2px solid #ff4b4b !important;
+        color: #60a5fa !important;
+        border-bottom: 2px solid #60a5fa !important;
     }
 
     div[role="radiogroup"] label[data-checked="true"] div[data-testid="stMarkdownContainer"] p {
-        color: #ff4b4b !important;
-        border-bottom: 2px solid #ff4b4b !important;
+        color: #3b82f6 !important;
+        border-bottom: 2px solid #3b82f6 !important;
         font-weight: bold;
+    }
+    
+    /* Botões */
+    .stButton > button {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: bold;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        border-right: 2px solid #334155;
+    }
+    
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #e2e8f0;
+    }
+    
+    /* Métricas */
+    [data-testid="stMetricValue"] {
+        color: #f3f4f6 !important;
+        font-size: 24px !important;
+        font-weight: bold !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #cbd5e1 !important;
+        font-size: 14px !important;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #1e293b;
+        border-radius: 8px;
+        padding: 4px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        color: #94a3b8;
+        border-radius: 6px;
+        padding: 8px 16px;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #3b82f6 !important;
+        color: white !important;
     }
     
     /* LOGO ANIMADA COM FAÍSCAS */
@@ -621,6 +796,7 @@ st.markdown("""
         height: auto;
         position: relative;
         z-index: 20; 
+        filter: drop-shadow(0 0 20px rgba(255, 69, 0, 0.5));
     }
 
     .sparkle {
@@ -661,6 +837,20 @@ st.markdown("""
     .s6 { bottom: 12px; left: 80%; animation: steady-rise-high 4.8s linear infinite; animation-delay: 1.2s; }
     .s7 { bottom: 18px; left: 90%; animation: steady-rise-high 5.8s linear infinite; animation-delay: 2.8s; }
     .s8 { bottom: 8px;  left: 30%; animation: steady-rise-high 5.0s linear infinite; animation-delay: 0.8s; }
+    
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background-color: #1e293b;
+        border: 2px dashed #475569;
+        border-radius: 8px;
+        padding: 20px;
+    }
+    
+    /* Success, warning, error boxes */
+    .stSuccess, .stWarning, .stError, .stInfo {
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -677,48 +867,58 @@ if 'resultado_arquivo' not in st.session_state:
 if 'resultado_pix' not in st.session_state:
     st.session_state.resultado_pix = None
 
-# --- LOGO ANIMADA (MÉTODO DO SEU CÓDIGO) ---
+# --- LOGO ANIMADA CORRIGIDA ---
 try:
     if os.path.exists(CONFIG["logo_path"]):
         img_base64 = get_img_as_base64(CONFIG["logo_path"])
-        st.markdown(
-            f"""
-            <div class="logo-container">
-                <div class="sparkle s1"></div>
-                <div class="sparkle s2"></div>
-                <div class="sparkle s3"></div>
-                <div class="sparkle s4"></div>
-                <div class="sparkle s5"></div>
-                <div class="sparkle s6"></div>
-                <div class="sparkle s7"></div>
-                <div class="sparkle s8"></div>
-                <img src="image/png;base64,{img_base64}" class="logo-animada">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        if img_base64:
+            st.markdown(
+                f"""
+                <div class="logo-container">
+                    <div class="sparkle s1"></div>
+                    <div class="sparkle s2"></div>
+                    <div class="sparkle s3"></div>
+                    <div class="sparkle s4"></div>
+                    <div class="sparkle s5"></div>
+                    <div class="sparkle s6"></div>
+                    <div class="sparkle s7"></div>
+                    <div class="sparkle s8"></div>
+                    <img src="data:image/png;base64,{img_base64}" class="logo-animada" alt="Logo Clips Burger">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            raise Exception("Não foi possível carregar a imagem")
     else:
-        st.markdown("""
-        <div class='logo-container'>
-            <h1 style='color: #ff4b4b; font-size: 80px; margin: 0;'>🍔</h1>
-            <p style='color: #ff4b4b; font-size: 28px; font-weight: bold; margin: 10px 0;'>CLIPS BURGER</p>
-        </div>
-        """, unsafe_allow_html=True)
+        raise Exception("Arquivo de logo não encontrado")
 except Exception as e:
-    st.error(f"Erro na logo: {e}")
+    st.markdown("""
+    <div class='logo-container' style='background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); 
+                                       border-radius: 20px; padding: 40px; box-shadow: 0 8px 16px rgba(0,0,0,0.4);'>
+        <h1 style='color: #ffffff; font-size: 80px; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>🍔</h1>
+        <p style='color: #ffffff; font-size: 32px; font-weight: bold; margin: 10px 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);'>CLIPS BURGER</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption(f"⚠️ Logo não encontrada: {e}")
 
 st.markdown("""
-<div style='text-align: center; margin-bottom: 20px;'>
-    <h2 style='color: #ff4b4b; margin: 0;'>🍔 Sistema de Gestão - Clips Burger</h2>
-    <p style='color: #b0b0b0; margin-top: 5px;'>Análise inteligente de vendas e combinações</p>
+<div style='text-align: center; margin-bottom: 30px;'>
+    <h2 style='color: #3b82f6; margin: 0; font-size: 32px; font-weight: bold;'>🍔 Sistema de Gestão - Clips Burger</h2>
+    <p style='color: #94a3b8; margin-top: 10px; font-size: 16px;'>Análise inteligente de vendas e combinações</p>
 </div>
 """, unsafe_allow_html=True)
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("⚙️ Configurações do Algoritmo")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                padding: 15px; border-radius: 10px; margin-bottom: 20px;'>
+        <h2 style='color: white; margin: 0; text-align: center;'>⚙️ Configurações</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
-    st.info("🧬 Algoritmo Genético com 2 Combos")
+    st.info("🧬 **Algoritmo Genético com 2 Combos**")
     
     population_size = st.slider(
         "Tamanho da População", 
@@ -740,12 +940,20 @@ with st.sidebar:
     
     st.divider()
     
-    st.caption("⚠️ **Regra Principal:**")
-    st.caption("**Total Sanduíches = Total Latas**")
-    st.caption("")
-    st.caption("🎁 **Combo 1:** JBC + Lata = R$ 25,00")
-    st.caption("🎁 **Combo 2:** Double + Lata = R$ 30,00")
-    st.caption("🧅 **Cebola:** Ajuste fino (R$ 0,50)")
+    st.markdown("""
+    <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;'>
+        <p style='color: #fbbf24; margin: 0; font-weight: bold;'>⚠️ Regra Principal:</p>
+        <p style='color: #e2e8f0; margin: 5px 0 0 0;'><b>Total Sanduíches = Total Latas</b></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style='background-color: #1e293b; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 4px solid #10b981;'>
+        <p style='color: #d1fae5; margin: 5px 0;'>🎁 <b>Combo 1:</b> JBC + Lata = R$ 25,00</p>
+        <p style='color: #d1fae5; margin: 5px 0;'>🎁 <b>Combo 2:</b> Double + Lata = R$ 30,00</p>
+        <p style='color: #fef3c7; margin: 5px 0;'>🧅 <b>Cebola:</b> Ajuste fino (R$ 0,50)</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- MENU DE NAVEGAÇÃO ---
 menu_opcoes = ["📈 Resumo das Vendas", "🧩 Análise com Arquivo", "💸 Calculadora PIX"]
@@ -754,7 +962,13 @@ escolha_menu = st.radio("Navegação", menu_opcoes, horizontal=True, label_visib
 # --- CONTEÚDO DAS ABAS ---
 
 if escolha_menu == "📈 Resumo das Vendas":
-    st.header("📤 Upload de Dados")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #60a5fa;'>
+        <h2 style='color: white; margin: 0; text-align: center;'>📤 Upload de Dados</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
     arquivo = st.file_uploader("Envie o arquivo de transações (.csv ou .xlsx)", 
                              type=["csv", "xlsx"])
     
@@ -800,7 +1014,12 @@ if escolha_menu == "📈 Resumo das Vendas":
                 st.session_state.vendas_data = vendas
                 st.session_state.total_vendas = total_vendas
             
-            st.header("📊 Visualização de Dados")
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                        padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #60a5fa;'>
+                <h2 style='color: white; margin: 0; text-align: center;'>📊 Visualização de Dados</h2>
+            </div>
+            """, unsafe_allow_html=True)
             
             st.subheader("Total de Vendas por Forma de Pagamento")
             bar_chart = create_altair_chart(
@@ -812,14 +1031,25 @@ if escolha_menu == "📈 Resumo das Vendas":
             )
             st.altair_chart(bar_chart, use_container_width=True)
             
-            st.header("⚙️ Parâmetros Financeiros")
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                        padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #60a5fa;'>
+                <h2 style='color: white; margin: 0; text-align: center;'>⚙️ Parâmetros Financeiros</h2>
+            </div>
+            """, unsafe_allow_html=True)
+            
             col1, col2 = st.columns(2)
             with col1:
                 salario_minimo = st.number_input("Salário Mínimo (R$)", value=1518.0, step=50.0)
             with col2:
                 custo_contadora = st.number_input("Custo com Contadora (R$)", value=316.0, step=10.0)
             
-            st.header("💰 Resultados Financeiros")
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                        padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #60a5fa;'>
+                <h2 style='color: white; margin: 0; text-align: center;'>💰 Resultados Financeiros</h2>
+            </div>
+            """, unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -843,7 +1073,12 @@ if escolha_menu == "📈 Resumo das Vendas":
             with col2:
                 st.metric("Lucro Estimado", format_currency(lucro_estimado))
             
-            st.header("🔍 Detalhamento")
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                        padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #60a5fa;'>
+                <h2 style='color: white; margin: 0; text-align: center;'>🔍 Detalhamento</h2>
+            </div>
+            """, unsafe_allow_html=True)
             
             tab_detalhes1, tab_detalhes2, tab_detalhes3 = st.tabs([
                 "📝 Composição de Custos", 
@@ -852,21 +1087,51 @@ if escolha_menu == "📈 Resumo das Vendas":
             ])
             
             with tab_detalhes1:
-                st.subheader("Composição dos Custos")
+                st.subheading("Composição dos Custos")
                 st.markdown(f"""
-                - **Imposto Simples Nacional (6%)**: {format_currency(imposto_simples)}
-                - **Custo Funcionário CLT**: {format_currency(custo_funcionario)}
-                - **Custo Contadora**: {format_currency(custo_contadora)}
-                """)
+                <div style='background-color: #1e293b; padding: 20px; border-radius: 10px; border: 2px solid #475569;'>
+                    <p style='color: #f3f4f6; font-size: 16px; margin: 10px 0;'>
+                        <b style='color: #60a5fa;'>• Imposto Simples Nacional (6%):</b> {format_currency(imposto_simples)}
+                    </p>
+                    <p style='color: #f3f4f6; font-size: 16px; margin: 10px 0;'>
+                        <b style='color: #60a5fa;'>• Custo Funcionário CLT:</b> {format_currency(custo_funcionario)}
+                    </p>
+                    <p style='color: #f3f4f6; font-size: 16px; margin: 10px 0;'>
+                        <b style='color: #60a5fa;'>• Custo Contadora:</b> {format_currency(custo_contadora)}
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
             
             with tab_detalhes2:
                 st.subheader("Fórmulas Utilizadas")
                 st.markdown("""
-                **1. Imposto Simples Nacional** `Faturamento Bruto × 6%`  
-                **2. Custo Funcionário CLT** `Salário + FGTS (8%) + Férias (1 mês + 1/3) + 13º Salário`  
-                **3. Total de Custos** `Imposto + Funcionário + Contadora`  
-                **4. Lucro Estimado** `Faturamento Bruto - Total de Custos`
-                """)
+                <div style='background-color: #1e293b; padding: 20px; border-radius: 10px; border: 2px solid #475569;'>
+                    <p style='color: #f3f4f6; font-size: 15px; margin: 10px 0;'>
+                        <b style='color: #fbbf24;'>1. Imposto Simples Nacional:</b><br>
+                        <code style='background-color: #334155; padding: 4px 8px; border-radius: 4px; color: #e2e8f0;'>
+                        Faturamento Bruto × 6%
+                        </code>
+                    </p>
+                    <p style='color: #f3f4f6; font-size: 15px; margin: 10px 0;'>
+                        <b style='color: #fbbf24;'>2. Custo Funcionário CLT:</b><br>
+                        <code style='background-color: #334155; padding: 4px 8px; border-radius: 4px; color: #e2e8f0;'>
+                        Salário + FGTS (8%) + Férias (1 mês + 1/3) + 13º Salário
+                        </code>
+                    </p>
+                    <p style='color: #f3f4f6; font-size: 15px; margin: 10px 0;'>
+                        <b style='color: #fbbf24;'>3. Total de Custos:</b><br>
+                        <code style='background-color: #334155; padding: 4px 8px; border-radius: 4px; color: #e2e8f0;'>
+                        Imposto + Funcionário + Contadora
+                        </code>
+                    </p>
+                    <p style='color: #f3f4f6; font-size: 15px; margin: 10px 0;'>
+                        <b style='color: #fbbf24;'>4. Lucro Estimado:</b><br>
+                        <code style='background-color: #334155; padding: 4px 8px; border-radius: 4px; color: #e2e8f0;'>
+                        Faturamento Bruto - Total de Custos
+                        </code>
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
             
             with tab_detalhes3:
                 st.subheader("Composição dos Custos")
@@ -885,26 +1150,37 @@ if escolha_menu == "📈 Resumo das Vendas":
                 )
                 st.altair_chart(graf_composicao, use_container_width=True)
             
-            st.header("📑 Relatório")
-            if st.button("Gerar Relatório PDF"):
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                        padding: 20px; border-radius: 12px; margin: 20px 0; border: 2px solid #60a5fa;'>
+                <h2 style='color: white; margin: 0; text-align: center;'>📑 Relatório</h2>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("📥 Gerar Relatório PDF", type="primary", use_container_width=True):
                 with st.spinner("Gerando relatório..."):
                     pdf_buffer = create_pdf_report(
                         df, vendas, total_vendas, imposto_simples, custo_funcionario, 
                         custo_contadora, total_custos, lucro_estimado, CONFIG["logo_path"]
                     )
                     b64_pdf = base64.b64encode(pdf_buffer.getvalue()).decode()
-                    pdf_display = f'<a href="application/pdf;base64,{b64_pdf}" download="relatorio_clips_burger.pdf">📥 Clique aqui para baixar o Relatório PDF</a>'
-                    st.markdown(pdf_display, unsafe_allow_html=True)
-                    st.success("Relatório gerado com sucesso!")
+                    pdf_display = f'<a href="data:application/pdf;base64,{b64_pdf}" download="relatorio_clips_burger.pdf" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">📥 Clique aqui para baixar o Relatório PDF</a>'
+                    st.markdown(f'<div style="text-align: center; margin: 20px 0;">{pdf_display}</div>', unsafe_allow_html=True)
+                    st.success("✅ Relatório gerado com sucesso!")
             
         except Exception as e:
-            st.error(f"Ocorreu um erro ao processar o arquivo: {str(e)}")
+            st.error(f"❌ Ocorreu um erro ao processar o arquivo: {str(e)}")
             st.exception(e)
     else:
-        st.info("Aguardando upload do arquivo de transações.")
+        st.info("ℹ️ Aguardando upload do arquivo de transações.")
 
 elif escolha_menu == "🧩 Análise com Arquivo":
-    st.header("🧩 Análise de Combinações por Arquivo")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #60a5fa;'>
+        <h2 style='color: white; margin: 0; text-align: center;'>🧩 Análise de Combinações por Arquivo</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     if st.session_state.vendas_data is not None:
         vendas = st.session_state.vendas_data
@@ -931,11 +1207,18 @@ elif escolha_menu == "🧩 Análise com Arquivo":
             renderizar_resultados(st.session_state.resultado_arquivo)
         
     else:
-        st.info("Faça o upload de dados na aba 'Resumo das Vendas' primeiro.")
+        st.info("ℹ️ Faça o upload de dados na aba 'Resumo das Vendas' primeiro.")
 
 elif escolha_menu == "💸 Calculadora PIX":
-    st.header("💸 Calculadora Rápida (PIX/Manual)")
-    st.markdown("Digite um valor e descubra quantos Combos 1 + Combos 2 + Cebolas formam esse total.")
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #60a5fa;'>
+        <h2 style='color: white; margin: 0; text-align: center;'>💸 Calculadora Rápida (PIX/Manual)</h2>
+        <p style='color: #dbeafe; text-align: center; margin: 10px 0 0 0;'>
+            Digite um valor e descubra quantos Combos 1 + Combos 2 + Cebolas formam esse total
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     col_input, col_action = st.columns([0.4, 0.6])
     
@@ -961,7 +1244,7 @@ elif escolha_menu == "💸 Calculadora PIX":
                     )
                     st.session_state.resultado_pix = dados
             else:
-                st.error("Por favor, insira um valor maior que zero.")
+                st.error("❌ Por favor, insira um valor maior que zero.")
 
     if st.session_state.resultado_pix:
         st.divider()
@@ -971,7 +1254,7 @@ elif escolha_menu == "💸 Calculadora PIX":
 st.divider()
 st.markdown(
     """
-    <div style='text-align: center; color: gray; font-size: small;'>
+    <div style='text-align: center; color: #64748b; font-size: 14px; padding: 20px 0;'>
         © 2025 Clips Burger - Sistema de Gestão de Combos | Desenvolvido com ❤️ e Streamlit
     </div>
     """, 
